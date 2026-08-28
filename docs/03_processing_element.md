@@ -1,750 +1,1039 @@
-# Processing Element Design
+# Processing Element (PE)
 
 ## 1. Overview
 
-The Processing Element (PE) is the fundamental computational building block of the 4×4 weight-stationary systolic array.
+The Processing Element (PE) is the fundamental computational unit of the 4×4 weight-stationary systolic array.
 
-The PE performs the core multiply-accumulate (MAC) operation required for matrix multiplication while also forwarding activation data to the next Processing Element.
+The PE performs a Multiply-Accumulate (MAC) operation while also providing the data-forwarding functionality required to construct the systolic array.
 
-The basic operation of the PE is:
+The fundamental computation is:
 
     PSUM_out = PSUM_in + (Activation × Weight)
 
-The PE is designed as a synchronous RTL block and forms the basis for constructing the complete systolic array.
+The PE also forwards the activation to the next Processing Element.
 
-The PE has been implemented in SystemVerilog RTL and functionally verified through simulation.
+The PE has been implemented using Verilog RTL and functionally verified through simulation.
 
 ---
 
 ## 2. Role of the Processing Element
 
-Each Processing Element performs three primary functions:
+The PE is responsible for four primary functions:
 
-1. Store a weight value.
-2. Perform a multiply-accumulate operation using the stored weight and incoming activation.
-3. Forward the activation to the next Processing Element.
-
-Conceptually:
-
-                         Weight
-                            |
-                            v
-                    +---------------+
-                    |               |
-    Activation ---->|      PE       |----> Activation
-                    |               |
-    PSUM_in ------->|      MAC      |
-                    |               |
-                    +-------+-------+
-                            |
-                            v
-                         PSUM_out
-
-The PE therefore combines computation and data movement within the same hardware block.
-
----
-
-## 3. PE Functional Description
-
-The Processing Element receives:
-
-- Clock
-- Reset
-- Weight input
-- Weight-load control
-- Activation input
-- Partial-sum input
-
-The PE produces:
-
-- Activation output
-- Updated partial-sum output
-
-The PE performs the following sequence during normal operation:
-
-    Activation × Stored Weight
-                    ↓
-             Multiplication
-                    ↓
-        Add Incoming Partial Sum
-                    ↓
-             Updated PSUM
-
-At the same time, the activation is forwarded to the next PE.
-
----
-
-## 4. PE Block Diagram
-
-The conceptual internal structure of the PE is:
-
-                         Weight Input
-                              |
-                              v
-                       +--------------+
-                       | Weight       |
-                       | Register     |
-                       +------+-------+
-                              |
-                              v
-    Activation Input ---> +---------+
-                          | Multiply|
-                          +----+----+
-                               |
-                               v
-                          +---------+
-    PSUM Input ---------->|  Adder  |
-                          +----+----+
-                               |
-                               v
-                         PSUM Output
-
-
-    Activation Input
-          |
-          v
-    +----------------+
-    | Activation     |
-    | Forwarding     |
-    | Register/Path  |
-    +-------+--------+
-            |
-            v
-    Activation Output
-
-The exact RTL implementation determines the register placement and signal timing.
-
----
-
-## 5. Weight Storage
-
-The PE uses a local weight storage mechanism.
-
-A weight is provided through the weight input and loaded into the PE when the weight-load control is asserted.
+1. Accepting and storing a weight.
+2. Receiving activation data.
+3. Performing multiplication and accumulation.
+4. Forwarding activation data to the next PE.
 
 Conceptually:
+
+             Weight
+                |
+                v
+        +---------------+
+        | Weight        |
+        | Register      |
+        +-------+-------+
+                |
+                v
+    Activation --> Multiplier
+                       |
+                       v
+                   Product
+                       |
+                       v
+    PSUM_in --------> Adder
+                       |
+                       v
+                    PSUM_out
+
+    Activation_in ---> Forwarding ---> Activation_out
+
+The PE combines local computation with inter-PE communication.
+
+---
+
+## 3. PE Architecture
+
+The conceptual PE architecture is:
+
+    +------------------------------------------------+
+    |             Processing Element                 |
+    |                                                |
+    |  Weight Input                                  |
+    |       |                                        |
+    |       v                                        |
+    |  +-----------+                                 |
+    |  |  Weight   |                                 |
+    |  |  Register |                                 |
+    |  +-----+-----+                                 |
+    |        |                                       |
+    |        v                                       |
+    |  +-----------+                                 |
+    |  | Multiplier| <----- Activation Input         |
+    |  +-----+-----+                                 |
+    |        |                                       |
+    |        v                                       |
+    |  +-----------+                                 |
+    |  |   Adder   | <----- Partial Sum Input        |
+    |  +-----+-----+                                 |
+    |        |                                       |
+    |        v                                       |
+    |   Partial Sum Output                           |
+    |                                                |
+    |  Activation Input                              |
+    |        |                                       |
+    |        v                                       |
+    |  Activation Forwarding                         |
+    |        |                                       |
+    |        v                                       |
+    |  Activation Output                             |
+    |                                                |
+    +------------------------------------------------+
+
+---
+
+## 4. PE Inputs
+
+The PE contains the signals required for weight loading, computation, synchronization, and data movement.
+
+The conceptual inputs are:
+
+### Clock
+
+Synchronizes sequential operations.
+
+### Reset
+
+Initializes the PE state.
+
+### Activation Input
+
+Carries the activation value used by the multiplier.
+
+### Weight Input
+
+Carries the weight that can be loaded into the PE.
+
+### Weight Load Control
+
+Controls when the weight input is stored inside the PE.
+
+### Partial Sum Input
+
+Carries the accumulated value from a previous computational stage.
+
+The exact signal names and widths are defined by the Verilog RTL source.
+
+---
+
+## 5. PE Outputs
+
+The conceptual PE outputs are:
+
+### Activation Output
+
+Forwards the activation to the next PE.
+
+### Partial Sum Output
+
+Provides the updated accumulated result.
+
+The fundamental output relationship is:
+
+    PSUM_out = PSUM_in + (Activation × Stored_Weight)
+
+The exact timing of these outputs is determined by the Verilog implementation.
+
+---
+
+## 6. Weight Storage
+
+The PE contains local storage for the weight.
+
+This is the key feature that enables weight-stationary operation.
+
+The conceptual operation is:
 
     Weight Input
          |
          v
-    +------------+
-    |   Weight   |
-    |  Register  |
-    +------------+
-         |
-         v
-    Stored Weight
-         |
-         v
-       MAC Unit
-
-Once loaded, the weight is retained locally for use in subsequent MAC operations.
-
-This behavior is fundamental to the weight-stationary dataflow.
-
----
-
-## 6. Weight-Stationary Operation
-
-The PE follows the weight-stationary principle.
-
-The weight remains stationary inside the PE while activation data moves through the processing element.
-
-The dataflow is:
-
-    Weight
-      |
-      v
-    [ Stored in PE ]
-      |
-      v
-    Used repeatedly for MAC operations
-
-while:
-
-    Activation
-        |
-        v
-       PE
-        |
-        v
-    Next PE
-
-This approach allows the PE to reuse the stored weight for multiple activation values.
-
----
-
-## 7. Activation Input and Output
-
-The PE receives activation data from the previous stage and forwards it to the next stage.
-
-The basic path is:
-
-    Activation_in
-          |
-          v
-        +----+
-        | PE |
-        +----+
-          |
-          v
-    Activation_out
-
-When multiple PEs are connected, this produces a systolic activation path.
-
-For one row:
-
-    PE00 → PE01 → PE02 → PE03
-
-The activation forwarding mechanism has been implemented and verified at the PE level.
-
----
-
-## 8. Partial-Sum Input
-
-The PE accepts a partial-sum input.
-
-The partial sum represents the accumulated result generated by previous computation stages.
-
-The PE uses this value as the starting point for the current MAC operation.
-
-The operation is:
-
-    Current Product = Activation × Weight
-
-    Updated PSUM = PSUM_in + Current Product
-
-Therefore:
-
-    PSUM_out = PSUM_in + (Activation × Weight)
-
----
-
-## 9. Multiply Operation
-
-The multiplication unit calculates:
-
-    Product = Activation × Weight
-
-The activation is received from the activation input path.
-
-The weight is obtained from the locally stored weight.
-
-The resulting product is passed to the accumulation stage.
-
-Conceptually:
-
-    Activation
-        |
-        v
-      +-----+
-      |  ×  | <----- Stored Weight
-      +--+--+
-         |
-         v
-      Product
-
-The multiplier represents the primary arithmetic computation inside the PE.
-
----
-
-## 10. Accumulation Operation
-
-The multiplication result is added to the incoming partial sum.
-
-The accumulator operation is:
-
-    PSUM_out = PSUM_in + Product
-
-Since:
-
-    Product = Activation × Weight
-
-the complete MAC operation is:
-
-    PSUM_out = PSUM_in + (Activation × Weight)
-
-This operation is repeated as new activation values arrive.
-
----
-
-## 11. Example MAC Operation
-
-Consider the following values:
-
-    Activation = 3
-    Weight     = 5
-    PSUM_in    = 10
-
-The multiplication is:
-
-    Product = 3 × 5
-            = 15
-
-The accumulated result is:
-
-    PSUM_out = 10 + 15
-             = 25
-
-Therefore:
-
-    PSUM_out = 25
-
-This demonstrates the fundamental operation performed by the Processing Element.
-
----
-
-## 12. Multiple MAC Operations
-
-The PE can accumulate multiple products over successive operations.
-
-For example:
-
-    Initial PSUM = 0
-
-First operation:
-
-    PSUM = 0 + (A0 × W)
-
-Second operation:
-
-    PSUM = PSUM + (A1 × W)
-
-Third operation:
-
-    PSUM = PSUM + (A2 × W)
-
-Fourth operation:
-
-    PSUM = PSUM + (A3 × W)
-
-Therefore:
-
-    Final PSUM =
-        (A0 × W)
-      + (A1 × W)
-      + (A2 × W)
-      + (A3 × W)
-
-This accumulation principle is required for calculating individual elements of a matrix multiplication.
-
----
-
-## 13. Clocked Operation
-
-The Processing Element operates synchronously with the clock.
-
-The clock provides the timing reference for state changes inside the PE.
-
-Clocked behavior is required for:
-
-- Weight loading
-- Partial-sum updates
-- Activation forwarding
-- Registered data movement
-
-The synchronous operation ensures that data moves through the systolic architecture in a controlled manner.
-
-Each PE therefore operates according to clock cycles rather than continuously changing its stored state asynchronously.
-
----
-
-## 14. Reset Operation
-
-The PE contains reset functionality to initialize its internal state.
-
-Reset is important because the PE contains state elements such as:
-
-- Stored weight
-- Partial sum
-- Forwarded activation, where registered
-
-During initialization, the PE is placed into a known state before normal computation begins.
-
-The PE testbench includes reset verification.
-
-The exact reset polarity and implementation are defined by the RTL source.
-
----
-
-## 15. PE Dataflow
-
-The complete conceptual dataflow through the PE is:
-
-    Weight Input
+    Weight Load
          |
          v
     Weight Register
          |
          v
-    +------------------+
-    |                  |
-    |       PE         |
-    |                  |
-    |  Activation × W  |
-    |        +         |
-    |      PSUM_in     |
-    |                  |
-    +---------+--------+
-              |
-              v
-          PSUM_out
+    Stored Weight
+         |
+         v
+    MAC Computation
 
-At the same time:
+Once the weight has been loaded, the PE retains it for subsequent computations until another weight-loading operation or reset changes the stored value.
+
+---
+
+## 7. Weight Loading Operation
+
+The weight-loading operation occurs when the weight-load control is asserted.
+
+Conceptually:
+
+    if weight_load = 1
+
+        stored_weight <= weight_input
+
+The weight is captured on the appropriate clock edge according to the Verilog sequential logic.
+
+After loading:
+
+    weight_load = 0
+
+the stored weight remains unchanged.
+
+This behavior enables the PE to reuse the same weight for multiple activation values.
+
+---
+
+## 8. Weight-Stationary Behavior
+
+The PE follows the weight-stationary principle:
+
+    Weight → Stored locally
+    Activation → Moves through PE
+    Partial Sum → Accumulated
+
+The weight therefore does not need to be continuously reloaded for every activation.
+
+For example:
+
+    Load Weight = W
+
+    Activation A0 → MAC with W
+    Activation A1 → MAC with W
+    Activation A2 → MAC with W
+    Activation A3 → MAC with W
+
+The same stored weight participates in multiple operations.
+
+---
+
+## 9. Multiplication
+
+The multiplication stage calculates:
+
+    Product = Activation × Stored_Weight
+
+The activation comes from the PE input while the weight comes from the internal weight register.
+
+Conceptually:
+
+    Activation Input
+          |
+          v
+       +------+
+       |  ×   | <----- Stored Weight
+       +--+---+
+          |
+          v
+       Product
+
+The product is then supplied to the accumulation stage.
+
+---
+
+## 10. Accumulation
+
+The accumulation stage adds the multiplication result to the incoming partial sum.
+
+The operation is:
+
+    PSUM_out = PSUM_in + Product
+
+Since:
+
+    Product = Activation × Stored_Weight
+
+the complete operation is:
+
+    PSUM_out =
+        PSUM_in + (Activation × Stored_Weight)
+
+This forms the MAC operation.
+
+---
+
+## 11. MAC Operation
+
+The PE performs:
+
+    Multiply
+        ↓
+    Accumulate
+
+or mathematically:
+
+    PSUM_out = PSUM_in + (Activation × Weight)
+
+For example, assume:
+
+    Activation = 4
+    Weight = 5
+    PSUM_in = 10
+
+Then:
+
+    Product = 4 × 5
+            = 20
+
+Therefore:
+
+    PSUM_out = 10 + 20
+
+    PSUM_out = 30
+
+This is the fundamental operation performed by the PE.
+
+---
+
+## 12. Multiple MAC Operations
+
+A series of MAC operations produces a dot product.
+
+Assume:
+
+    Activation values:
+
+    A0 = 2
+    A1 = 3
+    A2 = 4
+    A3 = 5
+
+and:
+
+    Weight values:
+
+    W0 = 1
+    W1 = 2
+    W2 = 3
+    W3 = 4
+
+Starting with:
+
+    PSUM = 0
+
+The accumulation is:
+
+    PSUM1 = 0 + (2 × 1)
+          = 2
+
+    PSUM2 = 2 + (3 × 2)
+          = 8
+
+    PSUM3 = 8 + (4 × 3)
+          = 20
+
+    PSUM4 = 20 + (5 × 4)
+          = 40
+
+Final result:
+
+    PSUM = 40
+
+This represents:
+
+    2×1 + 3×2 + 4×3 + 5×4 = 40
+
+---
+
+## 13. Activation Forwarding
+
+In addition to performing the MAC operation, the PE forwards activation data.
+
+Conceptually:
 
     Activation_in
           |
           v
-        PE
+        +-----+
+        | PE  |
+        +--+--+
+           |
+           v
+    Activation_out
+
+The forwarded activation can then be supplied to the neighboring PE.
+
+This is required to construct the horizontal systolic data path.
+
+---
+
+## 14. Activation Propagation
+
+When multiple PEs are connected:
+
+    PE00 → PE01 → PE02 → PE03
+
+the activation can propagate from one PE to the next.
+
+For example:
+
+    Activation
+        |
+        v
+       PE00
+        |
+        v
+       PE01
+        |
+        v
+       PE02
+        |
+        v
+       PE03
+
+The activation forwarding mechanism implemented in the PE forms the basis for this interconnection.
+
+---
+
+## 15. Partial-Sum Interface
+
+The PE receives a partial sum and produces an updated partial sum.
+
+Conceptually:
+
+    PSUM_in
+       |
+       v
+    +------+
+    |  PE  |
+    +--+---+
+       |
+       v
+    PSUM_out
+
+The operation is:
+
+    PSUM_out = PSUM_in + (Activation × Weight)
+
+The exact direction and interconnection of partial sums will be defined during complete array integration.
+
+---
+
+## 16. Reset Operation
+
+Reset places the PE into a known initial state.
+
+Reset is important because internal registers must not begin operation with unknown values.
+
+The reset operation is intended to initialize the PE state required for:
+
+- Weight storage
+- Partial-sum operation
+- Activation forwarding
+- Normal computation
+
+The exact reset polarity and reset implementation must match the actual Verilog RTL.
+
+---
+
+## 17. Clocked Operation
+
+The PE operates synchronously with the system clock.
+
+Sequential state changes occur on the appropriate clock edge.
+
+The conceptual timing is:
+
+    Clock Edge
+        |
+        +---- Weight Register Update
+        |
+        +---- Data Register Update
+        |
+        +---- Output State Update
+
+The exact register placement determines the cycle latency of the PE.
+
+---
+
+## 18. Verilog RTL Structure
+
+The PE is implemented as a Verilog module.
+
+The basic structure of a Verilog module is:
+
+    module pe (
+        input  ...,
+        input  ...,
+        output ...
+    );
+
+        // Internal signals
+
+        // Sequential logic
+
+        // Combinational logic
+
+    endmodule
+
+The actual source code in the `rtl/` directory is the authoritative definition of the module interface and implementation.
+
+---
+
+## 19. Sequential Logic
+
+Sequential behavior is implemented using clocked Verilog procedural blocks.
+
+The standard form is:
+
+    always @(posedge clk)
+
+For example, a clocked register operation follows the form:
+
+    always @(posedge clk) begin
+        register <= next_value;
+    end
+
+Non-blocking assignment (`<=`) is used for sequential register updates.
+
+---
+
+## 20. Combinational Logic
+
+Combinational operations can be described using continuous assignments or combinational procedural blocks.
+
+The standard Verilog procedural form is:
+
+    always @(*)
+
+Arithmetic relationships can also be represented using continuous assignments.
+
+For example:
+
+    assign product = activation * weight;
+
+The exact implementation should follow the current RTL source.
+
+---
+
+## 21. Internal Weight Register
+
+The weight register is an important state element inside the PE.
+
+Its function is:
+
+    Weight Input
+         ↓
+    Weight Register
+         ↓
+    Stored Weight
+         ↓
+    Multiplier
+
+The register allows the weight to remain stationary during normal computation.
+
+---
+
+## 22. Arithmetic Datapath
+
+The arithmetic datapath consists primarily of:
+
+    Activation
+         |
+         v
+    Multiplier
+         |
+         v
+       Product
+         |
+         v
+       Adder
+         ^
+         |
+      PSUM_in
+         |
+         v
+      PSUM_out
+
+The datapath implements:
+
+    PSUM_out = PSUM_in + (Activation × Weight)
+
+This is the core computational path of the PE.
+
+---
+
+## 23. Data Path and Control Path
+
+The PE can be conceptually divided into two categories.
+
+### Data Path
+
+The data path handles:
+
+- Activation
+- Weight
+- Multiplication
+- Partial sum
+- Activation forwarding
+
+### Control Path
+
+The control path handles:
+
+- Clock
+- Reset
+- Weight loading
+- Any required validity/control signals
+
+The separation of datapath and control simplifies understanding and debugging of the RTL.
+
+---
+
+## 24. PE Testbench
+
+A dedicated Verilog testbench was created to verify the Processing Element.
+
+The testbench provides stimulus to the PE and checks the resulting behavior.
+
+Conceptually:
+
+    +----------------------+
+    |      Testbench       |
+    |                      |
+    |  Clock Generation    |
+    |  Reset               |
+    |  Weight Stimulus     |
+    |  Activation Stimulus |
+    |  PSUM Stimulus       |
+    |  Output Checking     |
+    +----------+-----------+
+               |
+               v
+        +--------------+
+        |      PE      |
+        | Verilog RTL  |
+        +--------------+
+               |
+               v
+          PE Outputs
+               |
+               v
+          Verification
+
+---
+
+## 25. PE Verification Sequence
+
+The PE verification follows a controlled sequence.
+
+### Step 1
+
+Apply reset.
+
+### Step 2
+
+Load the required weight.
+
+### Step 3
+
+Provide activation data.
+
+### Step 4
+
+Provide the initial partial sum.
+
+### Step 5
+
+Allow the PE to perform the MAC operation.
+
+### Step 6
+
+Check the partial-sum output.
+
+### Step 7
+
+Check activation forwarding.
+
+### Step 8
+
+Repeat with additional values where required.
+
+This verifies the primary functions of the PE.
+
+---
+
+## 26. Weight Loading Verification
+
+Weight loading is verified by applying a known weight and asserting the weight-load control.
+
+The testbench then verifies that the loaded weight is used during the MAC operation.
+
+Conceptually:
+
+    Testbench
+        |
+        | Weight = W
+        | Load = 1
+        v
+       PE
+        |
+        v
+    Weight stored
+        |
+        v
+    Load = 0
+        |
+        v
+    MAC operation
+
+The correct result demonstrates that the weight was successfully captured and retained.
+
+---
+
+## 27. Activation Forwarding Verification
+
+Activation forwarding is verified by applying an activation at the PE input and observing the activation output.
+
+The expected behavior is:
+
+    Activation_in
+          |
+          v
+         PE
           |
           v
     Activation_out
 
-This allows computation and data propagation to occur together.
+The testbench confirms that the activation is forwarded according to the expected timing of the RTL implementation.
+
+This functionality is essential for later PE-to-PE array integration.
 
 ---
 
-## 16. PE Interface
+## 28. MAC Verification
 
-The Processing Element interface consists of clock, reset, control, data inputs, and data outputs.
+The MAC operation is verified using known input values.
 
-The conceptual interface is:
+For example:
 
-    +----------------------------------+
-    |               PE                 |
-    |                                  |
-    |  clk --------------------------> |
-    |  reset ------------------------> |
-    |  weight -----------------------> |
-    |  weight_load ------------------> |
-    |  activation_in ----------------> |
-    |  psum_in ----------------------> |
-    |                                  |
-    |  activation_out <--------------- |
-    |  psum_out <-------------------- |
-    |                                  |
-    +----------------------------------+
+    Weight = 5
+    Activation = 4
+    PSUM_in = 10
 
-The exact port names and widths are defined by the implemented RTL.
+Expected:
+
+    PSUM_out = 10 + (4 × 5)
+
+    PSUM_out = 30
+
+The testbench compares the RTL result with the expected result.
+
+If the values match, the MAC operation passes the test.
 
 ---
 
-## 17. PE Internal State
+## 29. Example Verification Calculation
 
-The PE contains state required to maintain information across clock cycles.
+Consider:
 
-The main conceptual state elements are:
+    Weight = 3
+    Activation = 7
+    PSUM_in = 2
 
-### Weight state
+Then:
 
-Stores the weight loaded into the PE.
+    Product = 7 × 3
+            = 21
 
-### Partial-sum state
+Expected:
 
-Stores or produces the accumulated computation result depending on the implementation.
+    PSUM_out = 2 + 21
 
-### Activation state
+    PSUM_out = 23
 
-Maintains activation information when registered forwarding is used.
+The testbench should verify:
 
-These state elements allow the PE to operate as part of a synchronous pipeline.
+    Actual PSUM_out = 23
+
+A mismatch indicates an RTL or testbench problem that must be investigated.
 
 ---
 
-## 18. PE Control
+## 30. Expected vs Actual Checking
 
-The weight-load control determines when a new weight is stored in the PE.
+Functional verification is based on comparing:
+
+    Expected Result
+
+against:
+
+    Actual RTL Result
 
 Conceptually:
 
-    weight_load = 1
-          |
-          v
-    Load Weight
-          |
-          v
-    Store in PE
+    Expected = PSUM_in + (Activation × Weight)
 
-When the weight-load operation is not active, the stored weight remains available for computation.
+    Actual   = PE PSUM_out
 
-The control mechanism prevents the stored weight from changing unintentionally during normal MAC operation.
+Then:
 
----
+    Expected == Actual
 
-## 19. PE Computation Flow
+If equal:
 
-The PE computation can be summarized as:
+    PASS
 
-    1. Reset PE
-           ↓
-    2. Provide weight
-           ↓
-    3. Assert weight-load control
-           ↓
-    4. Weight is stored
-           ↓
-    5. Provide activation
-           ↓
-    6. Provide partial sum
-           ↓
-    7. Perform multiplication
-           ↓
-    8. Add product to partial sum
-           ↓
-    9. Produce updated partial sum
-           ↓
-    10. Forward activation
+Otherwise:
 
-## 20. PE-Level Timing Concept
+    FAIL
 
-A simplified operation sequence is:
-
-    Cycle 0
-    -------
-    Reset / initialization
-
-    Cycle 1
-    -------
-    Weight loading
-
-    Cycle 2
-    -------
-    Activation + MAC
-
-    Cycle 3
-    -------
-    Next activation + MAC
-
-    Cycle 4
-    -------
-    Next activation + MAC
-
-The exact timing depends on the implemented RTL and testbench stimulus.
-
-The completed PE verification confirms the required behavior under the tested timing sequence.
+This method provides an objective functional check.
 
 ---
 
-## 21. PE Verification
+## 31. Waveform Verification
 
-A dedicated testbench was developed to verify the Processing Element.
+Waveform inspection is used in addition to numerical checking.
 
-The verification sequence includes:
+Important signals include:
 
-    Reset
-      ↓
-    Weight loading
-      ↓
-    Activation input
-      ↓
-    Partial-sum input
-      ↓
-    MAC operation
-      ↓
-    Activation forwarding
-      ↓
-    Output verification
+    clk
+    reset
+    weight
+    weight_load
+    activation_in
+    activation_out
+    psum_in
+    psum_out
 
-The testbench checks whether the PE produces the expected result.
+The waveform is inspected to verify:
+
+- Reset timing
+- Weight loading
+- Weight retention
+- Activation movement
+- MAC timing
+- Partial-sum update
+- Output timing
+
+Waveform analysis is particularly useful for identifying cycle-level errors.
 
 ---
 
-## 22. Verified PE Functionality
+## 32. PE Verification Result
 
-The following PE-level functionality has been successfully verified through simulation:
+The PE testbench successfully demonstrated the intended PE functionality.
+
+The verified behavior includes:
+
+    Weight Loading
+          ↓
+    Weight Storage
+          ↓
+    Activation Input
+          ↓
+    Multiplication
+          ↓
+    Partial-Sum Accumulation
+          ↓
+    Partial-Sum Output
+
+and:
+
+    Activation Input
+          ↓
+    Activation Forwarding
+          ↓
+    Activation Output
+
+The PE therefore provides the required basic functionality for the systolic array.
+
+---
+
+## 33. What Has Been Verified
+
+The following PE-level functionality has been verified:
+
+- PE reset
+- Weight loading
+- Weight storage
+- Activation input
+- Activation forwarding
+- MAC operation
+- Partial-sum calculation
+- Output behavior
+- Clocked operation
+- RTL simulation
+
+The exact test vectors and waveform evidence are maintained in the project's verification and simulation artifacts.
+
+---
+
+## 34. What Has Not Yet Been Verified
+
+PE-level verification does not establish complete accelerator functionality.
+
+The following require higher-level verification:
+
+- 4×4 PE interconnection
+- Complete activation scheduling
+- Complete weight mapping
+- Full partial-sum routing
+- 4×4 matrix multiplication
+- Array-level latency
+- Array throughput
+- Full accelerator control
+- Synthesis timing
+- Area
+- Power
+- Physical implementation
+
+These will be addressed in subsequent development stages.
+
+---
+
+## 35. PE Reusability
+
+The PE is designed to be reused as the basic building block of the complete systolic array.
+
+The same Verilog module can be instantiated multiple times:
+
+    PE module
+       |
+       +---- PE00
+       +---- PE01
+       +---- PE02
+       +---- PE03
+       |
+       +---- PE10
+       +---- PE11
+       +---- PE12
+       +---- PE13
+       |
+       +---- PE20
+       +---- PE21
+       +---- PE22
+       +---- PE23
+       |
+       +---- PE30
+       +---- PE31
+       +---- PE32
+       +---- PE33
+
+This provides modularity and reduces duplicated RTL.
+
+---
+
+## 36. PE as a Reusable IP Block
+
+The verified PE can be considered the foundation of the accelerator's computational datapath.
+
+A reusable PE should have:
+
+- Clearly defined inputs
+- Clearly defined outputs
+- Deterministic timing
+- Well-defined reset behavior
+- Verified arithmetic functionality
+- Verified data-forwarding functionality
+- Synthesizable Verilog RTL
+
+These properties make the PE suitable for integration into the larger systolic array.
+
+---
+
+## 37. Design Considerations
+
+Several considerations are important when integrating the PE into the array.
+
+### Timing
+
+The neighboring PE must receive data at the correct cycle.
+
+### Width
+
+Activation, weight, and partial-sum widths must be compatible.
 
 ### Reset
 
-The PE can be initialized before operation.
+All PEs must enter a known state.
 
-### Weight Loading
+### Weight Mapping
 
-The weight-loading mechanism was verified.
+Each PE must receive the correct weight.
 
-### Activation Forwarding
+### Activation Scheduling
 
-The activation input is correctly forwarded through the PE.
+Activations must be injected at the correct time.
 
-### Multiplication
+### Partial-Sum Initialization
 
-The activation and stored weight are multiplied.
+The correct initial partial sum must be supplied.
 
-### Partial-Sum Accumulation
+### Boundary Connections
 
-The multiplication result is added to the incoming partial sum.
-
-### MAC Operation
-
-The complete multiply-accumulate operation was verified.
-
-These verified functions form the minimum computational functionality required for integrating the PE into the systolic array.
+Edge PEs require appropriate external connections.
 
 ---
 
-## 23. Example Verification
+## 38. Integration Plan
 
-A basic verification scenario is:
+The PE will be integrated incrementally.
 
-    Weight = W
-    Activation = A
-    PSUM_in = P
+The planned sequence is:
 
-Expected result:
+    Verified PE
+         ↓
+    Two-PE connection
+         ↓
+    Row-level connection
+         ↓
+    4×4 PE array
+         ↓
+    Array-level testbench
+         ↓
+    Matrix multiplication
+         ↓
+    Top-level accelerator
 
-    PSUM_expected = P + (A × W)
-
-The RTL output is compared against the expected result.
-
-If:
-
-    PSUM_RTL == PSUM_expected
-
-the MAC operation passes the test.
-
-This methodology will later be extended to array-level matrix multiplication verification.
-
----
-
-## 24. PE as a Systolic Building Block
-
-The PE is designed to be replicated.
-
-The target architecture connects multiple identical PEs:
-
-    +------+    +------+    +------+    +------+
-    | PE   | -> | PE   | -> | PE   | -> | PE   |
-    +------+    +------+    +------+    +------+
-
-The same PE structure can therefore be used throughout the 4×4 array.
-
-This modular approach simplifies:
-
-- RTL development
-- Verification
-- Debugging
-- Array construction
-- Future scalability
+Testing at each stage reduces the risk of introducing difficult-to-debug system-level errors.
 
 ---
 
-## 25. Design Advantages
-
-The implemented PE provides several advantages for the target accelerator:
-
-### Modular
-
-The PE can be instantiated multiple times.
-
-### Reusable
-
-The same computational unit can be used throughout the array.
-
-### Regular
-
-The PE has a predictable dataflow.
-
-### Local computation
-
-The MAC operation is performed locally.
-
-### Weight reuse
-
-The stored weight can be reused for incoming activation values.
-
-### Systolic compatibility
-
-The activation forwarding mechanism allows PEs to be connected into a systolic network.
-
----
-
-## 26. Current PE Status
+## 39. Current PE Status
 
 | PE Feature | Status |
 |------------|--------|
-| PE architecture | Completed |
-| PE RTL | Completed |
-| Clocked operation | Completed |
-| Reset | Completed |
+| Verilog module | Completed |
+| Weight register | Completed |
 | Weight loading | Completed |
-| Weight storage | Completed |
 | Activation input | Completed |
 | Activation forwarding | Completed |
-| Partial-sum input | Completed |
-| Multiplication | Completed |
-| Partial-sum accumulation | Completed |
-| MAC operation | Completed |
+| Multiplier | Completed |
+| Accumulator | Completed |
+| Partial-sum interface | Completed |
+| Reset | Completed |
 | PE testbench | Completed |
-| PE simulation | Completed |
-| PE functional verification | Completed |
-| 4×4 array integration | In Progress |
+| RTL simulation | Completed |
+| Functional verification | Completed |
+| Array integration | Next stage |
 
 ---
 
-## 27. Limitations at Current Stage
+## 40. Summary
 
-The PE is verified independently, but the complete accelerator is not yet finished.
+The Processing Element is the fundamental computational block of the 4×4 weight-stationary systolic array.
 
-The following functionality remains to be implemented and verified:
-
-- 4×4 PE array integration
-- Array-level activation scheduling
-- Array-level partial-sum handling
-- Matrix multiplication verification
-- Controller
-- Input buffering
-- Weight buffering
-- Output handling
-- Top-level integration
-- Synthesis
-- Timing analysis
-- Power estimation
-
-Therefore, PE-level verification should not be interpreted as complete accelerator verification.
-
----
-
-## 28. Next Development Stage
-
-The next step is to instantiate the verified Processing Element multiple times to construct the 4×4 systolic array.
-
-The planned structure is:
-
-    4 × 4 PE Array
-         |
-         v
-    16 PE instances
-         |
-         v
-    Connect activation paths
-         |
-         v
-    Connect partial-sum paths
-         |
-         v
-    Configure weight loading
-         |
-         v
-    Verify data propagation
-         |
-         v
-    Verify matrix multiplication
-
-The verified PE will serve as the fundamental hardware unit for this integration.
-
----
-
-## 29. Summary
-
-The Processing Element is the core computational block of the 4×4 weight-stationary systolic array.
-
-It performs the fundamental operation:
+It performs:
 
     PSUM_out = PSUM_in + (Activation × Weight)
 
-The PE stores the weight locally, receives activation data, performs multiplication, accumulates the result into the partial sum, and forwards the activation to the next processing stage.
+The PE stores the weight locally, receives activation data, performs multiplication and accumulation, and forwards the activation to the next Processing Element.
 
-The PE has been implemented in SystemVerilog RTL and successfully verified through simulation for its fundamental functionality, including reset, weight loading, activation forwarding, multiplication, partial-sum accumulation, and MAC operation.
+The PE has been implemented in Verilog RTL and successfully verified through simulation.
 
-The verified PE provides the foundation for constructing the complete 4×4 systolic array containing 16 Processing Elements.
+The verified PE now provides the foundation for constructing the complete 4×4 systolic array.
 
-The next development stage is array-level integration and verification.
+The next stage is to connect multiple verified PEs, establish the array-level dataflow, verify cycle-by-cycle propagation, and demonstrate complete matrix multiplication.
