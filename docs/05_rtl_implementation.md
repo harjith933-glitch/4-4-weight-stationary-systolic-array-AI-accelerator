@@ -2,314 +2,332 @@
 
 ## 1. Overview
 
-The systolic array accelerator is being developed using synthesizable SystemVerilog RTL.
+The systolic array accelerator is implemented using synthesizable Verilog RTL.
 
-The RTL development follows a modular and bottom-up methodology.
+The RTL development follows a modular design methodology in which the Processing Element (PE) is implemented as the fundamental reusable hardware block.
 
-The Processing Element (PE) is implemented first and verified independently before being integrated into the complete 4×4 systolic array.
-
-The overall development hierarchy is:
+The project is being developed incrementally:
 
     Processing Element
-           ↓
-    PE Testbench
-           ↓
+          ↓
     PE Verification
-           ↓
-    4×4 PE Array
-           ↓
-    Array-Level Testbench
-           ↓
-    Matrix Multiplication Verification
-           ↓
+          ↓
+    Multiple PE Integration
+          ↓
+    4×4 Systolic Array
+          ↓
+    Array Verification
+          ↓
     Top-Level Accelerator
-           ↓
-    Synthesis and Hardware Analysis
 
-The current verified RTL implementation is the Processing Element.
+The RTL is intended to be suitable for simulation and subsequent synthesis.
 
 ---
 
-## 2. RTL Design Objectives
+## 2. RTL Language
 
-The RTL implementation is designed with the following objectives:
+The hardware design is implemented in:
 
-- Synthesizable hardware description
-- Modular architecture
-- Reusable Processing Element
-- Synchronous operation
-- Predictable data movement
-- Weight-stationary dataflow
-- Parameterizable datapath widths where appropriate
-- Easy simulation and debugging
-- Scalability toward larger systolic arrays
-- Compatibility with standard ASIC design flow
+    Verilog HDL
 
----
+RTL source files use the:
 
-## 3. RTL Design Methodology
+    .v
 
-The project follows a bottom-up RTL design methodology.
+file extension.
 
-The design is first divided into small functional blocks.
+The project does not use SystemVerilog-specific constructs.
 
-The PE is the smallest major computational block.
+The design therefore follows standard Verilog coding constructs such as:
 
-Once the PE functionality is verified, multiple instances can be connected to form the complete systolic array.
-
-This approach reduces debugging complexity because errors can be isolated at the block level before system-level integration.
-
-The methodology is:
-
-    Architecture Definition
-            ↓
-    RTL Specification
-            ↓
-    Module Coding
-            ↓
-    Compilation
-            ↓
-    Simulation
-            ↓
-    Waveform Inspection
-            ↓
-    Functional Verification
-            ↓
-    Integration
+    module
+    endmodule
+    input
+    output
+    wire
+    reg
+    assign
+    always
+    parameter
 
 ---
 
-## 4. Processing Element RTL
+## 3. RTL Directory
 
-The Processing Element is the primary RTL module currently implemented.
+The main RTL source files are maintained under:
 
-Its functional purpose is to:
+    rtl/
 
-1. Store a weight.
-2. Receive an activation.
-3. Multiply activation and stored weight.
-4. Add the product to the incoming partial sum.
-5. Produce an updated partial sum.
-6. Forward the activation.
+The project structure is:
 
-The fundamental computation is:
+    ~/systolic/
+    |
+    +-- rtl/
+    |
+    +-- tb/
+    |
+    +-- sim/
+    |
+    +-- wave/
+    |
+    +-- docs/
 
-    PSUM_out = PSUM_in + (Activation × Weight)
+The `rtl/` directory contains synthesizable hardware design files.
 
----
+The `tb/` directory contains verification testbenches.
 
-## 5. PE RTL Concept
+The `sim/` directory contains simulation-related files.
 
-The RTL implementation can be represented conceptually as:
+The `wave/` directory contains waveform-related artifacts.
 
-    +--------------------------------------+
-    |          Processing Element          |
-    |                                      |
-    |  Weight Input -----> Weight Register |
-    |                           |          |
-    |                           v          |
-    |  Activation Input ---> Multiplier   |
-    |                           |          |
-    |                           v          |
-    |  PSUM Input ----------> Adder        |
-    |                           |          |
-    |                           v          |
-    |                       PSUM Output    |
-    |                                      |
-    |  Activation Input ---> Forward Path  |
-    |                           |          |
-    |                           v          |
-    |                    Activation Output |
-    +--------------------------------------+
-
-The actual RTL implementation determines which paths are registered and how outputs are timed.
+The `docs/` directory contains project documentation.
 
 ---
 
-## 6. Sequential and Combinational Logic
+## 4. RTL Design Philosophy
 
-The PE contains both state-holding and arithmetic behavior.
+The RTL follows several design principles:
 
-### Sequential logic
+### Modularity
 
-Sequential logic is used for values that must retain state between clock cycles.
+Each hardware block should have a clearly defined function.
 
-Examples include:
+### Reusability
+
+The Processing Element should be reusable for multiple PE instances.
+
+### Synthesizability
+
+The RTL should describe hardware that can be mapped to gates and other physical resources by a synthesis tool.
+
+### Deterministic Behavior
+
+The hardware should behave predictably for defined input conditions.
+
+### Clear Dataflow
+
+Signal movement should correspond directly to the intended systolic architecture.
+
+### Incremental Verification
+
+Each block should be verified before being integrated into a larger block.
+
+---
+
+## 5. Processing Element as RTL Building Block
+
+The Processing Element is the fundamental RTL block.
+
+Its primary functions are:
+
+    Weight Loading
+          ↓
+    Weight Storage
+          ↓
+    Activation Input
+          ↓
+    Multiplication
+          ↓
+    Accumulation
+          ↓
+    Partial Sum Output
+
+At the same time:
+
+    Activation Input
+          ↓
+    Activation Forwarding
+          ↓
+    Activation Output
+
+The PE is implemented as a reusable Verilog module.
+
+---
+
+## 6. Verilog Module Structure
+
+A Verilog module provides the interface and implementation of the hardware block.
+
+The general structure is:
+
+    module pe (
+        input  ...,
+        output ...
+    );
+
+        // Internal declarations
+
+        // RTL logic
+
+    endmodule
+
+The exact module name, ports, signal widths, and implementation are defined in the project's actual RTL source file.
+
+---
+
+## 7. Inputs and Outputs
+
+The PE interface conceptually contains:
+
+### Inputs
+
+- Clock
+- Reset
+- Activation input
+- Weight input
+- Weight-load control
+- Partial-sum input
+
+### Outputs
+
+- Activation output
+- Partial-sum output
+
+The exact interface must always be taken from the current Verilog RTL source.
+
+Documentation should not override the actual RTL interface.
+
+---
+
+## 8. Internal Signals
+
+The PE requires internal signals for operations such as:
 
 - Stored weight
-- Registered partial sum, if implemented
-- Registered activation forwarding, if implemented
-
-Sequential logic is controlled by the clock.
-
-### Combinational logic
-
-Combinational logic is used for arithmetic operations that do not independently store state.
-
-Examples include:
-
-- Multiplication
-- Addition
-- Intermediate arithmetic signals
-
-The exact implementation should be taken from the current RTL source.
-
----
-
-## 7. Clock
-
-The PE operates synchronously using a clock signal.
-
-The clock provides the timing reference for registered operations.
+- Multiplication result
+- Accumulation
+- Forwarded activation
+- Intermediate values
 
 Conceptually:
 
-    Clock
-      |
-      +----> Weight Register
-      |
-      +----> Activation Register
-      |
-      +----> Partial-Sum Register
+    Weight Input
+         |
+         v
+    Weight Register
+         |
+         v
+    Stored Weight
+         |
+         v
+    Multiplier
+         |
+         v
+      Product
+         |
+         v
+       Adder <----- PSUM Input
+         |
+         v
+      PSUM Output
 
-The clocked design allows the PE to participate in a deterministic systolic pipeline.
+The exact internal signal names are implementation-specific.
 
 ---
 
-## 8. Reset
+## 9. Sequential Logic
 
-Reset initializes the internal state of the Processing Element.
+Sequential logic represents state that changes with the clock.
 
-Reset ensures that the PE begins operation from a known state.
+The standard Verilog form is:
 
-Depending on the RTL implementation, reset may initialize:
-
-- Weight register
-- Partial-sum state
-- Activation forwarding state
-- Other internal registers
-
-The reset behavior is verified in the PE testbench.
-
-The exact reset polarity and synchronous/asynchronous implementation must always be taken from the actual RTL source.
-
----
-
-## 9. Weight Register
-
-The weight register is responsible for implementing the weight-stationary behavior.
-
-When the weight-load control is active, the incoming weight is stored.
-
-Conceptually:
-
-    if weight_load:
-        stored_weight <= weight_input;
-
-When weight loading is inactive:
-
-    stored_weight remains unchanged.
-
-This allows the weight to remain stationary inside the PE during subsequent computation.
-
----
-
-## 10. Weight Loading
-
-The weight-loading sequence is:
-
-    Weight input
-         |
-         v
-    weight_load asserted
-         |
-         v
-    Clock edge
-         |
-         v
-    Weight stored
-         |
-         v
-    weight_load deasserted
-         |
-         v
-    Weight retained
-
-The stored weight is then used by the multiplier.
-
----
-
-## 11. Weight Retention
-
-After loading, the PE retains the weight until another valid weight-loading operation occurs or reset initializes the register.
-
-This behavior is important for weight reuse.
+    always @(posedge clk)
 
 For example:
 
-    Cycle 1:
-        Load W
+    always @(posedge clk) begin
+        register <= next_value;
+    end
 
-    Cycle 2:
-        A0 × W
+Non-blocking assignment:
 
-    Cycle 3:
-        A1 × W
+    <=
 
-    Cycle 4:
-        A2 × W
+is used for clocked register updates.
 
-    Cycle 5:
-        A3 × W
-
-The same locally stored weight can therefore participate in multiple MAC operations.
+The weight register is an example of state that must retain its value between clock cycles.
 
 ---
 
-## 12. Multiplier
+## 10. Weight Register
 
-The multiplier calculates:
-
-    Product = Activation × Stored_Weight
-
-The multiplication is the primary arithmetic operation in the PE.
+The PE contains storage for the weight.
 
 Conceptually:
 
-    activation_in
-          |
-          v
-       +------+
-       |  ×   | <---- stored_weight
-       +--+---+
-          |
-          v
-       product
+    Weight Input
+         |
+         v
+    Weight Register
+         |
+         v
+    Stored Weight
 
-The multiplier width depends on the operand widths defined in the RTL.
+When the weight-load condition is active, the incoming weight is captured.
 
----
+After the loading operation, the stored value remains available for MAC operations.
 
-## 13. Partial-Sum Adder
-
-The product generated by the multiplier is added to the incoming partial sum.
-
-The operation is:
-
-    PSUM_out = PSUM_in + Product
-
-Therefore:
-
-    PSUM_out =
-        PSUM_in + (Activation × Stored_Weight)
-
-This is the accumulate portion of the MAC operation.
+This provides the weight-stationary behavior.
 
 ---
 
-## 14. MAC Datapath
+## 11. Weight Loading RTL Behavior
 
-The complete arithmetic datapath is:
+The conceptual sequential operation is:
+
+    At clock edge:
+
+    if weight_load is active
+
+        stored_weight <= weight_input
+
+Otherwise:
+
+        stored_weight remains unchanged
+
+The exact reset and control conditions are defined by the actual RTL implementation.
+
+---
+
+## 12. Combinational Logic
+
+Combinational logic produces outputs based on current inputs and internal state without requiring storage.
+
+Standard Verilog continuous assignments can be used:
+
+    assign output_signal = expression;
+
+For procedural combinational logic, the standard form is:
+
+    always @(*)
+
+For example:
+
+    always @(*) begin
+        result = a + b;
+    end
+
+The actual PE implementation determines which operations are implemented as combinational logic and which are registered.
+
+---
+
+## 13. Multiply Operation
+
+The core arithmetic operation is:
+
+    Product = Activation × Stored_Weight
+
+The multiplier therefore receives:
+
+    Activation
+
+and:
+
+    Stored Weight
+
+The result is supplied to the accumulation logic.
+
+Conceptually:
 
     Activation
         |
@@ -318,74 +336,62 @@ The complete arithmetic datapath is:
     | Multiplier|
     +-----+-----+
           |
-          | Product
           v
-    +-----------+
-    |   Adder   | <----- PSUM_in
-    +-----+-----+
+       Product
           |
           v
-      PSUM_out
+       Accumulator
 
-The PE therefore performs a complete MAC operation.
+---
+
+## 14. Accumulation Operation
+
+The accumulation equation is:
+
+    PSUM_out = PSUM_in + Product
+
+Substituting the multiplication:
+
+    PSUM_out =
+        PSUM_in + (Activation × Weight)
+
+This is the fundamental MAC operation.
+
+The exact register placement and output timing are determined by the Verilog RTL.
 
 ---
 
 ## 15. Activation Forwarding
 
-The activation is also forwarded to the next PE.
+Activation forwarding is required for systolic operation.
 
 Conceptually:
 
     activation_in
           |
           v
-        +-----+
-        | PE  |
-        +--+--+
-           |
-           v
+         PE
+          |
+          v
     activation_out
 
-This forwarding path is necessary to construct the systolic communication network.
+The activation output can then be connected to the activation input of another PE.
 
-The activation output of one PE can become the activation input of the neighboring PE.
+This enables:
 
----
+    PE00 → PE01 → PE02 → PE03
 
-## 16. PE-to-PE Connection
-
-When multiple PEs are instantiated, their activation paths can be connected.
-
-For example:
-
-    PE0
-     |
-     | activation_out
-     v
-    PE1
-     |
-     | activation_out
-     v
-    PE2
-     |
-     | activation_out
-     v
-    PE3
-
-This creates a regular data propagation path.
-
-The complete 4×4 connection structure will be implemented at the array level.
+and similar paths across the array.
 
 ---
 
-## 17. Partial-Sum Path
+## 16. Partial-Sum Path
 
-The partial-sum path provides the accumulation mechanism.
+The partial-sum path allows the accumulated computation to continue.
 
 Conceptually:
 
-    PSUM_in
+    psum_in
        |
        v
     +------+
@@ -393,646 +399,824 @@ Conceptually:
     +--+---+
        |
        v
-    PSUM_out
+    psum_out
 
-The exact connection of PSUM signals between PEs depends on the final systolic dataflow implementation.
+Inside the PE:
 
-The PE provides the basic arithmetic operation required for this connection.
+    psum_out =
+        psum_in + (activation × weight)
+
+This allows the PE to function as a MAC stage.
 
 ---
 
-## 18. RTL Coding Style
+## 17. Reset Logic
 
-The RTL should follow synthesizable and maintainable SystemVerilog coding practices.
+Reset places the internal PE state into a known condition.
 
-Important principles include:
+The reset behavior may initialize registers such as:
 
-- Use `always_ff` for clocked sequential logic where appropriate.
-- Use `always_comb` for combinational logic where appropriate.
-- Avoid unintended latches.
-- Use non-blocking assignments for sequential logic.
-- Use blocking assignments for combinational procedural logic when appropriate.
-- Keep datapath and control behavior understandable.
-- Avoid unnecessary logic duplication.
-- Use meaningful signal names.
-- Keep modules modular.
-- Avoid simulation-only constructs in synthesizable RTL.
+- Stored weight
+- Partial-sum state
+- Forwarded data state
+
+The exact reset polarity and synchronous/asynchronous behavior must match the actual Verilog RTL.
+
+The documentation intentionally does not assume a reset implementation that is not present in the RTL.
+
+---
+
+## 18. Clocking
+
+The design uses synchronous digital logic.
+
+The system clock provides the timing reference for sequential state changes.
+
+Conceptually:
+
+    Clock
+      |
+      +------ PE00
+      |
+      +------ PE01
+      |
+      +------ PE02
+      |
+      +------ ...
+      |
+      +------ PE33
+
+A common clock allows the Processing Elements to operate in a coordinated manner.
 
 ---
 
 ## 19. Blocking and Non-Blocking Assignments
 
-Sequential state updates should use non-blocking assignments.
+The RTL follows standard Verilog assignment conventions.
 
-Conceptually:
+### Non-Blocking Assignment
 
-    always_ff @(posedge clk) begin
-        register <= next_value;
+Use:
+
+    <=
+
+for sequential register updates.
+
+Example:
+
+    always @(posedge clk) begin
+        q <= d;
     end
 
-This models hardware registers correctly.
+### Blocking Assignment
 
-Combinational calculations may use blocking assignments where procedural combinational logic is required.
+Use:
 
-The chosen coding style should maintain a clear distinction between:
+    =
 
-    Current state
+for procedural combinational calculations where appropriate.
 
-and:
+Example:
 
-    Next state
+    always @(*) begin
+        y = a + b;
+    end
+
+Correct assignment selection helps prevent simulation behavior that does not accurately represent the intended hardware.
 
 ---
 
-## 20. Synthesizability
+## 20. Continuous Assignments
 
-The RTL is intended for synthesis into hardware.
+Simple combinational relationships can be described using:
 
-Therefore, synthesizable constructs should be used.
+    assign
 
-The following should be avoided in synthesizable datapath RTL unless specifically supported for synthesis:
+For example:
 
-- Arbitrary delays
-- `#` timing controls
-- Testbench-only constructs
-- File I/O inside synthesizable modules
-- Infinite simulation loops
-- Unsupported dynamic constructs
+    assign product = activation * weight;
 
-The testbench may use simulation-specific constructs, but the design RTL should remain synthesizable.
+Continuous assignments are useful for combinational datapath relationships.
+
+The actual RTL should be preferred over this conceptual example when describing the implemented design.
 
 ---
 
 ## 21. Parameterization
 
-Where appropriate, datapath widths should be parameterized rather than hard-coded.
+Parameters can be used when a design requires configurable values such as:
 
-Potential parameters include:
+- Data width
+- Weight width
+- Partial-sum width
+- Array dimensions
 
-    DATA_WIDTH
-    WEIGHT_WIDTH
-    PSUM_WIDTH
-
-For example:
+A general Verilog parameter can be declared using:
 
     parameter DATA_WIDTH = ...
-    parameter WEIGHT_WIDTH = ...
-    parameter PSUM_WIDTH = ...
 
-Parameterization allows the architecture to be evaluated with different numerical precisions.
+The exact parameterization depends on the final project RTL.
 
-The exact parameters must match the current RTL implementation.
+If a value is fixed in the current implementation, the documentation should not incorrectly describe it as parameterized.
 
 ---
 
-## 22. Datapath Width Considerations
+## 22. Arithmetic Width
 
-The accumulator generally requires greater width than an individual input operand.
+Arithmetic width is an important consideration in the PE.
 
-For signed operands:
+If activation has width:
 
-    Activation × Weight
+    N bits
 
-produces a result whose width depends on the operand widths.
+and weight has width:
 
-Accumulating multiple products may require additional bits.
+    M bits
 
-For a general dot product:
+the multiplication result may require up to:
 
-    PSUM =
-        A0×W0 +
-        A1×W1 +
-        A2×W2 +
-        A3×W3
+    N + M bits
 
-the accumulator width must be selected so that expected results do not overflow.
+The accumulator may require additional bits because multiple products are added together.
 
-The final width selection should therefore be documented based on the actual RTL design.
+For four accumulated products, the required accumulator range must be considered carefully.
+
+The actual widths used by the project are defined in the Verilog RTL.
 
 ---
 
-## 23. Signed Arithmetic Considerations
+## 23. Signedness
 
-If the accelerator supports signed values, the RTL must explicitly handle signed arithmetic.
+The interpretation of arithmetic operands depends on whether the signals are signed or unsigned.
 
-The design must ensure that:
+Possible representations include:
 
-- Activation interpretation is correct.
-- Weight interpretation is correct.
-- Multiplication produces the intended signed result.
-- Partial-sum accumulation preserves sign.
-- Output interpretation is correct.
+    Unsigned
 
-If the current implementation uses unsigned operands, this must remain consistent throughout the PE and testbench.
+or:
 
-The actual signed/unsigned definition should be taken directly from the RTL source.
+    Signed two's-complement
 
----
+The RTL must consistently define the intended representation.
 
-## 24. Overflow Considerations
+Signedness affects:
 
-Arithmetic overflow is an important consideration in MAC-based hardware.
+- Multiplication
+- Addition
+- Comparison
+- Overflow
+- Expected simulation results
 
-For example, if the accumulator is too narrow:
-
-    PSUM + Product
-
-may exceed the representable range.
-
-This can result in incorrect output values.
-
-Therefore, the design should determine:
-
-- Operand range
-- Product range
-- Number of accumulated products
-- Required accumulator width
-
-Overflow behavior should eventually be included in verification.
+Therefore, testbench expected values must use the same arithmetic interpretation as the RTL.
 
 ---
 
-## 25. RTL Module Organization
+## 24. Synthesizable RTL
 
-The project follows a modular directory structure.
+The PE is intended to use synthesizable Verilog constructs.
 
-The project root is:
+Synthesis tools translate synthesizable RTL into a gate-level implementation.
 
-    ~/systolic
+Conceptually:
 
-The main directories are:
+    Verilog RTL
+         |
+         v
+    RTL Synthesis
+         |
+         v
+    Gate-Level Netlist
+
+The final synthesized implementation can then be analyzed for:
+
+- Timing
+- Area
+- Power
+
+---
+
+## 25. Avoiding Simulation-Only Constructs
+
+For synthesis-oriented RTL, care must be taken with constructs intended only for simulation.
+
+Examples of testbench-oriented constructs include:
+
+    $display
+    $monitor
+    $finish
+    #delay
+
+These may be appropriate in verification environments but should not be used indiscriminately inside synthesizable design logic.
+
+The design RTL should describe actual hardware behavior.
+
+---
+
+## 26. Testbench Separation
+
+The project separates synthesizable RTL from verification code.
+
+Design:
 
     rtl/
+
+Verification:
+
     tb/
-    sim/
-    wave/
-    docs/
 
-The intended purpose of each directory is:
+This separation is important because testbench code may contain simulation-only constructs that are not intended for synthesis.
 
-### rtl/
-
-Contains synthesizable SystemVerilog design files.
-
-### tb/
-
-Contains verification/testbench files.
-
-### sim/
-
-Contains simulation scripts, generated simulation artifacts, or simulator-specific files as applicable.
-
-### wave/
-
-Contains waveform files and waveform-related artifacts.
-
-### docs/
-
-Contains project documentation.
+The Processing Element RTL remains independent from its testbench.
 
 ---
 
-## 26. RTL File Organization
-
-The RTL directory is intended to contain the hardware modules.
-
-The PE RTL is the first major implemented design block.
-
-Future RTL modules are expected to include components such as:
-
-    PE
-    Systolic Array
-    Controller
-    Input Buffer
-    Weight Buffer
-    Output Handler
-    Top-Level Accelerator
-
-Only modules that have actually been implemented should be listed as completed.
-
----
-
-## 27. Testbench Relationship
-
-The RTL module is verified using a dedicated testbench.
+## 27. RTL and Testbench Relationship
 
 The relationship is:
 
-    +------------------+
-    |     Testbench    |
-    |                  |
-    |  Stimulus        |
-    |  Expected Result |
-    |  Checks          |
-    +--------+---------+
-             |
-             v
-    +------------------+
-    |       PE         |
-    |                  |
-    |   RTL Design     |
-    +--------+---------+
-             |
-             v
-          Outputs
-             |
-             v
-       Testbench Check
+    +----------------+
+    |   Testbench    |
+    |                |
+    | Stimulus       |
+    | Clock          |
+    | Reset          |
+    | Checking       |
+    +-------+--------+
+            |
+            v
+    +----------------+
+    | Processing     |
+    | Element RTL    |
+    +-------+--------+
+            |
+            v
+         Outputs
+            |
+            v
+       Verification
 
-The testbench provides inputs and checks whether the RTL produces the expected behavior.
-
----
-
-## 28. PE Verification Through RTL Simulation
-
-The PE was compiled and simulated using the project simulation environment.
-
-The verification included:
-
-    Reset
-       ↓
-    Weight loading
-       ↓
-    Activation input
-       ↓
-    Partial-sum input
-       ↓
-    MAC computation
-       ↓
-    Activation forwarding
-       ↓
-    Output checking
-
-The PE simulation successfully demonstrated the intended functionality.
+The testbench does not become part of the synthesized hardware.
 
 ---
 
-## 29. Waveform Analysis
+## 28. RTL Simulation Flow
 
-Waveforms are used to inspect the internal and external behavior of the RTL during simulation.
+The basic simulation flow is:
 
-Important signals to inspect include:
+    Verilog RTL
+        +
+    Verilog Testbench
+        |
+        v
+    HDL Simulator
+        |
+        v
+    Simulation
+        |
+        +---- Console Results
+        |
+        +---- Waveform
+        |
+        v
+    Functional Verification
+
+The project uses simulation to verify the PE before array integration.
+
+---
+
+## 29. Compilation
+
+Before simulation, the required Verilog files must be compiled.
+
+Conceptually:
+
+    PE RTL
+       +
+    PE Testbench
+       |
+       v
+    Verilog Compiler
+       |
+       v
+    Simulation Model
+
+Compilation errors must be resolved before functional simulation can proceed.
+
+---
+
+## 30. Simulation Execution
+
+After successful compilation:
+
+    Start Simulation
+          ↓
+    Apply Reset
+          ↓
+    Load Weight
+          ↓
+    Apply Activation
+          ↓
+    Apply Partial Sum
+          ↓
+    Perform MAC
+          ↓
+    Observe Output
+          ↓
+    Compare Expected Result
+
+This verifies the implemented behavior.
+
+---
+
+## 31. Waveform Generation
+
+Simulation waveforms provide visibility into internal and external signals.
+
+Important signals include:
 
     clk
     reset
+    activation
     weight
     weight_load
-    activation_in
-    activation_out
     psum_in
     psum_out
+    activation_out
 
-The waveform should be used to verify:
+The exact signal names depend on the current RTL.
 
-- Correct reset behavior
-- Correct weight loading
-- Weight retention
-- Correct activation propagation
-- Correct multiplication
-- Correct accumulation
-- Correct output timing
-
-Waveform inspection is an important debugging step before array integration.
+Waveforms can be used to verify cycle-by-cycle behavior.
 
 ---
 
-## 30. RTL Verification Philosophy
+## 32. RTL Debugging Method
 
-Verification is performed incrementally.
+When an unexpected result occurs, debugging should proceed systematically.
 
-The principle is:
+### Step 1
 
-    Verify small block
-          ↓
-    Integrate block
-          ↓
-    Verify integration
-          ↓
-    Build larger system
-          ↓
-    Verify complete system
+Check reset.
 
-This prevents errors from being hidden inside a large design.
+### Step 2
 
-For the current project:
+Check weight loading.
 
-    PE
-      ↓
-    Verified
+### Step 3
 
-The next stage is:
+Check stored weight.
 
-    4×4 PE Array
-      ↓
-    Verify
+### Step 4
 
----
+Check activation input.
 
-## 31. Current RTL Implementation Status
+### Step 5
 
-| RTL Component | Status |
-|---------------|--------|
-| Processing Element | Completed |
-| PE weight register | Completed |
-| PE weight loading | Completed |
-| PE MAC datapath | Completed |
-| PE activation forwarding | Completed |
-| PE partial-sum handling | Completed |
-| PE reset logic | Completed |
-| PE testbench | Completed |
-| PE simulation | Completed |
-| PE functional verification | Completed |
-| 4×4 array RTL | In Progress |
-| Array interconnection | Planned |
-| Array controller | Planned |
-| Input buffer | Planned |
-| Weight buffer | Planned |
-| Output handling | Planned |
-| Top-level RTL | Planned |
+Check multiplication result.
+
+### Step 6
+
+Check partial-sum input.
+
+### Step 7
+
+Check partial-sum output.
+
+### Step 8
+
+Check activation forwarding.
+
+### Step 9
+
+Check clock-cycle alignment.
+
+This approach makes it easier to isolate RTL errors.
 
 ---
 
-## 32. RTL Quality Requirements
+## 33. PE RTL Verification
 
-Before the RTL is considered ready for synthesis, it should satisfy:
+The PE RTL was verified using a dedicated Verilog testbench.
 
-- Clean compilation
-- No unintended latches
-- No unintended combinational loops
-- No unresolved signals
-- No width-mismatch warnings where avoidable
-- Correct reset behavior
-- Correct clocked behavior
-- Deterministic outputs
-- Verified functionality
-- Consistent coding style
-- Synthesizable constructs
+The verification confirmed the intended behavior of:
 
-Simulation warnings should be reviewed rather than automatically ignored.
-
----
-
-## 33. Future RTL Integration
-
-The next RTL development stage is the 4×4 systolic array.
-
-The expected hierarchy is:
-
-    top
-     |
-     +-- systolic_array
-             |
-             +-- PE00
-             +-- PE01
-             +-- PE02
-             +-- PE03
-             |
-             +-- PE10
-             +-- PE11
-             +-- PE12
-             +-- PE13
-             |
-             +-- PE20
-             +-- PE21
-             +-- PE22
-             +-- PE23
-             |
-             +-- PE30
-             +-- PE31
-             +-- PE32
-             +-- PE33
-
-This hierarchy allows the verified PE to be reused rather than rewriting the MAC logic for every array element.
-
----
-
-## 34. Array Integration Principles
-
-When integrating the 16 PEs, the following principles will be maintained:
-
-### Identical PE instances
-
-All PEs should use the same verified PE module.
-
-### Structured interconnection
-
-Neighboring PEs should be connected according to the defined systolic dataflow.
-
-### Controlled weight loading
-
-Weights should be loaded into the correct PE locations.
-
-### Correct activation scheduling
-
-Activations should reach the intended PEs at the correct cycles.
-
-### Correct partial-sum handling
-
-Partial sums must be initialized and accumulated correctly.
-
-### Boundary handling
-
-PEs at the edges of the array must have correct external connections.
-
----
-
-## 35. Simulation Flow
-
-The general simulation workflow is:
-
-    Write RTL
-       ↓
-    Write Testbench
-       ↓
-    Compile
-       ↓
-    Elaborate
-       ↓
-    Run Simulation
-       ↓
-    Generate Waveform
-       ↓
-    Inspect Signals
-       ↓
-    Compare Expected vs Actual
-       ↓
-    Fix RTL if required
-       ↓
-    Re-run Verification
-
-The same methodology will be applied to array-level verification.
-
----
-
-## 36. Regression Testing
-
-As the project grows, previously verified functionality should continue to be tested.
-
-For example, after array integration:
-
-    PE tests
-        +
-    Array tests
-        +
-    Matrix multiplication tests
-
-should all be retained.
-
-This prevents new changes from breaking previously verified functionality.
-
----
-
-## 37. Version Control Considerations
-
-RTL source files should be maintained under Git version control.
-
-The repository should preserve:
-
-- RTL source
-- Testbench source
-- Simulation scripts
-- Documentation
-- Relevant configuration files
-
-Generated files should generally not be committed unless they are intentionally required for reproducibility.
-
-Examples of files that may be excluded:
-
-    simulator-generated binaries
-    temporary files
-    large waveform databases
-    build artifacts
-
-A `.gitignore` file should be used to manage generated artifacts.
-
----
-
-## 38. Reproducible Simulation
-
-The project should aim for reproducible simulation.
-
-A new user should eventually be able to:
-
-    Clone repository
-          ↓
-    Install required simulator
-          ↓
-    Run simulation command/script
-          ↓
-    Observe PASS/FAIL result
-
-The exact simulator and commands should be documented in the project's simulation documentation.
-
----
-
-## 39. ASIC Design Flow Compatibility
-
-The RTL is being developed with the eventual goal of following an ASIC-oriented flow.
-
-The planned flow is:
-
-    System Specification
-          ↓
-    Architecture
-          ↓
-    RTL Design
-          ↓
-    Functional Verification
-          ↓
-    RTL Lint
-          ↓
-    Logic Synthesis
-          ↓
-    Gate-Level Netlist
-          ↓
-    Static Timing Analysis
-          ↓
-    Floorplanning
-          ↓
-    Placement
-          ↓
-    Clock Tree Synthesis
-          ↓
-    Routing
-          ↓
-    Physical Verification
-          ↓
-    GDSII
-
-The current project is at the RTL implementation and functional verification stage.
-
----
-
-## 40. RTL to GDS Perspective
-
-The long-term objective is to take the verified RTL through the standard digital ASIC implementation flow.
-
-The important distinction is:
-
-    RTL simulation
-          ≠
-    Synthesized hardware
-          ≠
-    Physical layout
-
-Therefore, successful RTL simulation establishes functional correctness at the RTL level but does not by itself establish:
-
-- Timing closure
-- Area efficiency
-- Power efficiency
-- Physical design correctness
-- Manufacturability
-
-These will require later stages of the project.
-
----
-
-## 41. Current Development Boundary
-
-The current verified implementation boundary is:
-
-    +----------------------+
-    | Processing Element   |
-    |                      |
-    | Weight Storage       |
-    | Activation Path     |
-    | Multiplier           |
-    | Accumulator           |
-    +----------+-----------+
-               |
-               v
-          PE Testbench
-               |
-               v
-           Simulation
-               |
-               v
-          Functional PASS
-
-The complete array and accelerator are still under development.
-
----
-
-## 42. Summary
-
-The accelerator is being implemented using modular SystemVerilog RTL.
-
-The Processing Element is the fundamental RTL block and contains the required functionality for:
-
-- Weight storage
 - Weight loading
-- Activation reception
+- Weight retention
+- Activation input
 - Activation forwarding
 - Multiplication
 - Partial-sum accumulation
-- MAC computation
-- Synchronous operation
+- Output behavior
+
+The successful PE verification provides the foundation for array-level integration.
+
+---
+
+## 34. Modular Array Construction
+
+The complete array can be constructed by instantiating the PE module multiple times.
+
+Conceptually:
+
+    PE Module
+       |
+       +---- PE00
+       +---- PE01
+       +---- PE02
+       +---- PE03
+       |
+       +---- PE10
+       +---- PE11
+       +---- PE12
+       +---- PE13
+       |
+       +---- PE20
+       +---- PE21
+       +---- PE22
+       +---- PE23
+       |
+       +---- PE30
+       +---- PE31
+       +---- PE32
+       +---- PE33
+
+This avoids duplicating the PE implementation.
+
+---
+
+## 35. PE Interconnection
+
+During array integration, PE outputs are connected to neighboring PE inputs.
+
+Conceptually:
+
+    PE00.activation_out
+              |
+              v
+    PE01.activation_in
+
+Similarly:
+
+    PE01.activation_out
+              |
+              v
+    PE02.activation_in
+
+and so on.
+
+The exact connections depend on the final systolic dataflow.
+
+---
+
+## 36. Top-Level RTL
+
+After PE verification, a higher-level module can instantiate the array.
+
+Conceptually:
+
+    Top-Level
+        |
+        v
+    Systolic Array
+        |
+        +---- PE00
+        +---- PE01
+        ...
+        +---- PE33
+
+The top-level module will eventually provide:
+
+- External inputs
+- External outputs
+- Clock
 - Reset
+- Control
+- Data interfaces
 
-The PE has been successfully simulated and functionally verified.
+The final interface will be defined during top-level integration.
 
-The next RTL stage is to instantiate the verified PE 16 times and construct the complete 4×4 systolic array.
+---
 
-After array-level verification, the design can be extended toward control, buffering, top-level integration, synthesis, timing analysis, physical design, and eventually GDSII generation.
+## 37. RTL Hierarchy
 
-The RTL methodology emphasizes modularity, synthesizability, reproducibility, incremental verification, and eventual ASIC-flow compatibility.
+The intended RTL hierarchy is:
+
+    Top-Level Accelerator
+             |
+             v
+       Systolic Array
+             |
+             v
+        Processing Element
+             |
+             +---- Weight Register
+             |
+             +---- Multiplier
+             |
+             +---- Accumulator
+             |
+             +---- Forwarding Logic
+
+This hierarchical structure makes the design easier to understand and maintain.
+
+---
+
+## 38. Design Reuse
+
+The PE is designed to be reusable.
+
+A single verified PE implementation can be instantiated multiple times.
+
+Advantages include:
+
+- Less duplicated RTL
+- Easier maintenance
+- Consistent behavior
+- Simplified verification
+- Easier scalability
+
+A change to the PE implementation can therefore be propagated to all PE instances through the common module.
+
+---
+
+## 39. RTL Quality Considerations
+
+The RTL should be checked for:
+
+- Correct reset behavior
+- Correct clocking
+- Correct assignment types
+- Width mismatches
+- Signedness mismatches
+- Unintended latches
+- Multiple drivers
+- Undriven signals
+- Combinational loops
+- Synthesis compatibility
+
+These checks become increasingly important as the design grows.
+
+---
+
+## 40. Latch Avoidance
+
+Combinational procedural blocks must assign outputs for all relevant conditions.
+
+For example:
+
+    always @(*) begin
+
+        if (condition)
+            y = a;
+        else
+            y = b;
+
+    end
+
+Providing complete assignments prevents unintended latch inference.
+
+The actual RTL should be reviewed accordingly.
+
+---
+
+## 41. Multiple Driver Avoidance
+
+A signal should not unintentionally be driven by multiple sources.
+
+Incorrect:
+
+    assign result = a;
+
+and simultaneously:
+
+    always @(*) begin
+        result = b;
+    end
+
+Such conflicting drivers can produce incorrect hardware or synthesis errors.
+
+The RTL should maintain clear ownership of each signal.
+
+---
+
+## 42. Width Matching
+
+Signals connected between modules must have compatible widths.
+
+For example:
+
+    Activation Output Width
+             =
+    Activation Input Width
+
+Similarly:
+
+    Partial Sum Output Width
+             =
+    Partial Sum Input Width
+
+where required by the architecture.
+
+Width mismatches should be identified during compilation and RTL review.
+
+---
+
+## 43. Hierarchical Verification
+
+The RTL should be verified hierarchically.
+
+The recommended sequence is:
+
+    PE
+     ↓
+    Multiple PEs
+     ↓
+    PE Row
+     ↓
+    4×4 Array
+     ↓
+    Top-Level Accelerator
+
+This approach reduces debugging complexity.
+
+---
+
+## 44. Synthesis-Oriented Development
+
+The RTL is being developed with eventual synthesis in mind.
+
+The intended flow is:
+
+    Verilog RTL
+         ↓
+    Simulation
+         ↓
+    Functional Verification
+         ↓
+    Synthesis
+         ↓
+    Gate-Level Netlist
+         ↓
+    Timing Analysis
+         ↓
+    Area Analysis
+         ↓
+    Power Analysis
+
+This allows functional correctness to be established before physical implementation.
+
+---
+
+## 45. Timing Considerations
+
+The critical path may involve:
+
+    Activation
+        ↓
+    Multiplier
+        ↓
+    Adder
+        ↓
+    Register
+
+The exact critical path can only be determined after synthesis and timing analysis.
+
+The RTL documentation therefore does not claim a specific maximum frequency until timing analysis is performed.
+
+---
+
+## 46. Area Considerations
+
+The main arithmetic resources include:
+
+- Multipliers
+- Adders
+- Registers
+- Routing/interconnect
+
+For 16 PEs, these resources are replicated across the array.
+
+The actual silicon area depends on the selected technology library and synthesis results.
+
+---
+
+## 47. Power Considerations
+
+Dynamic power can result from switching activity in:
+
+- Multipliers
+- Adders
+- Registers
+- Interconnects
+
+The systolic array can have significant concurrent switching because multiple PEs may operate simultaneously.
+
+Actual power must be measured or estimated using a suitable power-analysis flow.
+
+No power number should be claimed without analysis data.
+
+---
+
+## 48. RTL Portability
+
+Using standard Verilog constructs improves portability between HDL simulators and synthesis tools.
+
+The project therefore avoids unnecessary dependence on tool-specific RTL constructs.
+
+The objective is to maintain clean, synthesizable Verilog that can be simulated and later synthesized using compatible EDA tools.
+
+---
+
+## 49. Current RTL Status
+
+| RTL Component | Status |
+|---------------|--------|
+| PE module | Completed |
+| Weight storage | Completed |
+| Weight loading | Completed |
+| MAC datapath | Completed |
+| Activation forwarding | Completed |
+| Partial-sum operation | Completed |
+| PE testbench | Completed |
+| PE simulation | Completed |
+| PE functional verification | Completed |
+| Multiple PE integration | Next stage |
+| 4×4 array RTL | Under development |
+| Array testbench | Planned |
+| Top-level RTL | Planned |
+| Synthesis | Planned |
+
+---
+
+## 50. RTL Development Rules
+
+The following rules should be maintained throughout the project:
+
+1. Use Verilog RTL only.
+2. Keep synthesizable design code inside `rtl/`.
+3. Keep testbench code inside `tb/`.
+4. Use non-blocking assignments for sequential logic.
+5. Use blocking assignments for procedural combinational logic where appropriate.
+6. Use `always @(posedge clk)` for clocked logic.
+7. Use `always @(*)` for combinational procedural logic.
+8. Avoid unintended latches.
+9. Avoid multiple drivers.
+10. Keep signal widths consistent.
+11. Clearly define signedness.
+12. Verify each module before integration.
+13. Do not claim performance without measurement.
+14. Keep the documentation synchronized with the actual RTL.
+
+---
+
+## 51. Source-of-Truth Principle
+
+The actual Verilog RTL is the authoritative source for:
+
+- Module names
+- Port names
+- Port directions
+- Signal widths
+- Reset polarity
+- Reset behavior
+- Clock behavior
+- Register implementation
+- Combinational logic
+- Data timing
+
+Documentation should describe the RTL rather than inventing implementation details.
+
+If the RTL changes, the corresponding documentation should also be updated.
+
+---
+
+## 52. Summary
+
+The accelerator is implemented using standard Verilog RTL.
+
+The Processing Element is the fundamental reusable hardware block.
+
+The PE implements:
+
+    PSUM_out = PSUM_in + (Activation × Weight)
+
+and provides activation forwarding required for systolic data movement.
+
+The RTL development follows a modular and verification-driven approach:
+
+    Verilog PE
+        ↓
+    PE Testbench
+        ↓
+    PE Simulation
+        ↓
+    Functional Verification
+        ↓
+    Array Integration
+        ↓
+    Array Verification
+        ↓
+    Synthesis
+
+The current verified RTL foundation is the Processing Element.
+
+The next development stage is to integrate the verified PE modules into the complete 4×4 systolic array and verify the complete dataflow and matrix multiplication operation.
