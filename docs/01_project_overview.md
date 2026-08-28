@@ -1,69 +1,38 @@
-2.1 Introduction
+## 2.3 Target Computation
 
-Explain what a systolic array is.
+The primary mathematical operation targeted by the systolic array is matrix multiplication.
 
-A systolic array is a network of interconnected processing elements in which data moves rhythmically between neighboring processing elements while computation occurs concurrently. The architecture is particularly suitable for highly parallel matrix multiplication and AI/ML workloads.
+For two matrices:
 
-2.2 Project objective
+A = [a_ij]
+B = [b_ij]
 
-Explain:
+the output matrix is:
 
-The objective of this project is to design and verify a 4×4 weight-stationary systolic array accelerator using synthesizable SystemVerilog RTL. The architecture is intended to accelerate matrix multiplication by exploiting spatial parallelism and data reuse.
+C = A × B
 
-2.3 Target computation
+For a 4×4 matrix multiplication:
 
-Explain:
+A(4×4) × B(4×4) = C(4×4)
 
-$$ C=A\times B $$
+Each element of the output matrix is calculated as:
 
-For:
+C[i][j] = A[i][0] × B[0][j]
+        + A[i][1] × B[1][j]
+        + A[i][2] × B[2][j]
+        + A[i][3] × B[3][j]
 
-$$ A_{4\times4}\times B_{4\times4}=C_{4\times4} $$
+In general:
 
-Each output element is:
-Cij​=k=0∑3​Aik​Bkj​
-2.4 Why systolic architecture?
+C[i][j] = Σ(A[i][k] × B[k][j])
 
-Document:
+where:
 
-Parallel computation
-Data reuse
-Local communication
-Reduced movement of operands
-Regular structure
-Scalability
-Suitability for AI accelerators
-2.5 Why 4×4?
+- i = output row index
+- j = output column index
+- k = accumulation index
+- A = input/activation matrix
+- B = weight matrix
+- C = output matrix
 
-Explain that the 4×4 architecture is selected as a manageable proof-of-concept that demonstrates:
-
-Spatial parallelism
-PE-to-PE communication
-Weight reuse
-Partial-sum accumulation
-Systolic data movement
-2.6 Target application
-
-Mention:
-
-Matrix multiplication
-Neural-network workloads
-AI/ML acceleration
-Convolution-derived matrix operations
-Dense linear algebra
-
-Don't claim that the current implementation supports convolution unless we actually implement it.
-
-2.7 Project scope
-
-Separate:
-
-Current scope
-
-PE design and verification.
-
-Overall target
-
-Complete 4×4 accelerator.
-
-This distinction is important.
+For a 4×4 systolic array, 16 Processing Elements (PEs) operate in parallel to perform the multiply-accumulate (MAC) operations required for matrix multiplication.
