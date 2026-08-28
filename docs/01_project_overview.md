@@ -21,8 +21,7 @@ For:
 $$ A_{4\times4}\times B_{4\times4}=C_{4\times4} $$
 
 Each output element is:
-
-$$ C_{ij}=\sum_{k=0}^{3}A_{ik}B_{kj} $$
+Cij​=k=0∑3​Aik​Bkj​
 2.4 Why systolic architecture?
 
 Document:
