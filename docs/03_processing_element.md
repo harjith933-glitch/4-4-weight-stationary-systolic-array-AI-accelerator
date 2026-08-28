@@ -494,3 +494,257 @@ The PE computation can be summarized as:
     9. Produce updated partial sum
            ↓
     10. Forward activation
+
+## 20. PE-Level Timing Concept
+
+A simplified operation sequence is:
+
+    Cycle 0
+    -------
+    Reset / initialization
+
+    Cycle 1
+    -------
+    Weight loading
+
+    Cycle 2
+    -------
+    Activation + MAC
+
+    Cycle 3
+    -------
+    Next activation + MAC
+
+    Cycle 4
+    -------
+    Next activation + MAC
+
+The exact timing depends on the implemented RTL and testbench stimulus.
+
+The completed PE verification confirms the required behavior under the tested timing sequence.
+
+---
+
+## 21. PE Verification
+
+A dedicated testbench was developed to verify the Processing Element.
+
+The verification sequence includes:
+
+    Reset
+      ↓
+    Weight loading
+      ↓
+    Activation input
+      ↓
+    Partial-sum input
+      ↓
+    MAC operation
+      ↓
+    Activation forwarding
+      ↓
+    Output verification
+
+The testbench checks whether the PE produces the expected result.
+
+---
+
+## 22. Verified PE Functionality
+
+The following PE-level functionality has been successfully verified through simulation:
+
+### Reset
+
+The PE can be initialized before operation.
+
+### Weight Loading
+
+The weight-loading mechanism was verified.
+
+### Activation Forwarding
+
+The activation input is correctly forwarded through the PE.
+
+### Multiplication
+
+The activation and stored weight are multiplied.
+
+### Partial-Sum Accumulation
+
+The multiplication result is added to the incoming partial sum.
+
+### MAC Operation
+
+The complete multiply-accumulate operation was verified.
+
+These verified functions form the minimum computational functionality required for integrating the PE into the systolic array.
+
+---
+
+## 23. Example Verification
+
+A basic verification scenario is:
+
+    Weight = W
+    Activation = A
+    PSUM_in = P
+
+Expected result:
+
+    PSUM_expected = P + (A × W)
+
+The RTL output is compared against the expected result.
+
+If:
+
+    PSUM_RTL == PSUM_expected
+
+the MAC operation passes the test.
+
+This methodology will later be extended to array-level matrix multiplication verification.
+
+---
+
+## 24. PE as a Systolic Building Block
+
+The PE is designed to be replicated.
+
+The target architecture connects multiple identical PEs:
+
+    +------+    +------+    +------+    +------+
+    | PE   | -> | PE   | -> | PE   | -> | PE   |
+    +------+    +------+    +------+    +------+
+
+The same PE structure can therefore be used throughout the 4×4 array.
+
+This modular approach simplifies:
+
+- RTL development
+- Verification
+- Debugging
+- Array construction
+- Future scalability
+
+---
+
+## 25. Design Advantages
+
+The implemented PE provides several advantages for the target accelerator:
+
+### Modular
+
+The PE can be instantiated multiple times.
+
+### Reusable
+
+The same computational unit can be used throughout the array.
+
+### Regular
+
+The PE has a predictable dataflow.
+
+### Local computation
+
+The MAC operation is performed locally.
+
+### Weight reuse
+
+The stored weight can be reused for incoming activation values.
+
+### Systolic compatibility
+
+The activation forwarding mechanism allows PEs to be connected into a systolic network.
+
+---
+
+## 26. Current PE Status
+
+| PE Feature | Status |
+|------------|--------|
+| PE architecture | Completed |
+| PE RTL | Completed |
+| Clocked operation | Completed |
+| Reset | Completed |
+| Weight loading | Completed |
+| Weight storage | Completed |
+| Activation input | Completed |
+| Activation forwarding | Completed |
+| Partial-sum input | Completed |
+| Multiplication | Completed |
+| Partial-sum accumulation | Completed |
+| MAC operation | Completed |
+| PE testbench | Completed |
+| PE simulation | Completed |
+| PE functional verification | Completed |
+| 4×4 array integration | In Progress |
+
+---
+
+## 27. Limitations at Current Stage
+
+The PE is verified independently, but the complete accelerator is not yet finished.
+
+The following functionality remains to be implemented and verified:
+
+- 4×4 PE array integration
+- Array-level activation scheduling
+- Array-level partial-sum handling
+- Matrix multiplication verification
+- Controller
+- Input buffering
+- Weight buffering
+- Output handling
+- Top-level integration
+- Synthesis
+- Timing analysis
+- Power estimation
+
+Therefore, PE-level verification should not be interpreted as complete accelerator verification.
+
+---
+
+## 28. Next Development Stage
+
+The next step is to instantiate the verified Processing Element multiple times to construct the 4×4 systolic array.
+
+The planned structure is:
+
+    4 × 4 PE Array
+         |
+         v
+    16 PE instances
+         |
+         v
+    Connect activation paths
+         |
+         v
+    Connect partial-sum paths
+         |
+         v
+    Configure weight loading
+         |
+         v
+    Verify data propagation
+         |
+         v
+    Verify matrix multiplication
+
+The verified PE will serve as the fundamental hardware unit for this integration.
+
+---
+
+## 29. Summary
+
+The Processing Element is the core computational block of the 4×4 weight-stationary systolic array.
+
+It performs the fundamental operation:
+
+    PSUM_out = PSUM_in + (Activation × Weight)
+
+The PE stores the weight locally, receives activation data, performs multiplication, accumulates the result into the partial sum, and forwards the activation to the next processing stage.
+
+The PE has been implemented in SystemVerilog RTL and successfully verified through simulation for its fundamental functionality, including reset, weight loading, activation forwarding, multiplication, partial-sum accumulation, and MAC operation.
+
+The verified PE provides the foundation for constructing the complete 4×4 systolic array containing 16 Processing Elements.
+
+The next development stage is array-level integration and verification.
