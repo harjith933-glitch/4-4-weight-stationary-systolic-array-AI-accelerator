@@ -1,333 +1,101 @@
-# Project Overview
-
-## 1. Project Title
-
 # 4×4 Weight-Stationary Systolic Array AI Accelerator
 
-A SystemVerilog RTL implementation of a 4×4 weight-stationary systolic array architecture for accelerating matrix multiplication workloads used in Artificial Intelligence (AI) and Machine Learning (ML) applications.
+## 1. Project Overview
 
----
+This project focuses on the design and RTL implementation of a 4×4 weight-stationary systolic array accelerator for matrix multiplication and AI-oriented computational workloads.
 
-## 2. Introduction
+The accelerator is designed using Verilog RTL and follows a modular hardware architecture based on Processing Elements (PEs).
 
-Artificial Intelligence and Machine Learning workloads rely heavily on matrix and vector operations. Among these operations, matrix multiplication is one of the most computationally intensive tasks in many neural-network and signal-processing applications.
-
-A conventional processor performs multiplication and accumulation operations sequentially or with a limited number of parallel execution units. Dedicated hardware accelerators can improve performance by exploiting parallelism and data reuse.
-
-A systolic array is a hardware architecture specifically suited for this type of computation. It consists of multiple Processing Elements (PEs) arranged in a regular structure. Data moves between neighboring Processing Elements in a synchronized manner while computation takes place simultaneously.
-
-This project focuses on designing a 4×4 weight-stationary systolic array accelerator using SystemVerilog RTL.
-
-The fundamental computational unit of the architecture is the Processing Element, which performs a multiply-accumulate (MAC) operation while forwarding activation data to the next Processing Element.
-
----
-
-## 3. Project Objective
-
-The primary objective of this project is to design and verify a hardware accelerator capable of performing matrix multiplication using a 4×4 systolic array architecture.
-
-The target architecture contains:
-
-    4 × 4 = 16 Processing Elements
-
-The design uses a weight-stationary dataflow in which weights are loaded into the Processing Elements and remain locally available while activation data propagates through the array.
-
-The project follows a bottom-up hardware design methodology:
-
-    Architecture Definition
-            ↓
-    Processing Element Design
-            ↓
-    Processing Element Verification
-            ↓
-    4×4 Array Integration
-            ↓
-    Array-Level Verification
-            ↓
-    Top-Level Integration
-            ↓
-    Synthesis and Analysis
-
-The Processing Element stage has been implemented and verified. The remaining stages will be developed incrementally.
-
----
-
-## 4. Target Computation
-
-The primary computation targeted by the accelerator is matrix multiplication.
-
-For two matrices A and B:
-
-    C = A × B
-
-For the target 4×4 configuration:
-
-    A(4×4) × B(4×4) = C(4×4)
-
-Each output element is calculated by multiplying corresponding elements and accumulating the products.
-
-For a 4×4 matrix:
-
-    C[i][j] =
-        A[i][0] × B[0][j]
-      + A[i][1] × B[1][j]
-      + A[i][2] × B[2][j]
-      + A[i][3] × B[3][j]
-
-The general matrix multiplication operation is:
-
-    C[i][j] = Σ(A[i][k] × B[k][j])
-
-where:
-
-- A is the input or activation matrix.
-- B is the weight matrix.
-- C is the output matrix.
-- i represents the output row.
-- j represents the output column.
-- k represents the accumulation dimension.
-
-Matrix multiplication is selected because it is a fundamental operation in many AI and ML workloads.
-
----
-
-## 5. Systolic Array Concept
-
-A systolic array consists of multiple Processing Elements connected in a structured and regular arrangement.
-
-The target architecture contains 16 Processing Elements organized as a 4×4 array.
-
-Conceptually:
-
-                     Activation Flow →
-
-              +------+ +------+ +------+ +------+
-              | PE00 | | PE01 | | PE02 | | PE03 |
-              +------+ +------+ +------+ +------+
-
-              +------+ +------+ +------+ +------+
-              | PE10 | | PE11 | | PE12 | | PE13 |
-              +------+ +------+ +------+ +------+
-
-              +------+ +------+ +------+ +------+
-              | PE20 | | PE21 | | PE22 | | PE23 |
-              +------+ +------+ +------+ +------+
-
-              +------+ +------+ +------+ +------+
-              | PE30 | | PE31 | | PE32 | | PE33 |
-              +------+ +------+ +------+ +------+
-
-Each Processing Element performs part of the overall computation and communicates with neighboring Processing Elements.
-
-This distributed computation enables multiple MAC operations to take place in parallel.
-
----
-
-## 6. Weight-Stationary Dataflow
-
-The architecture uses a weight-stationary dataflow.
-
-In this dataflow, the weight is loaded into a Processing Element and remains stationary while activation data moves through the array.
-
-The basic PE operation can be represented as:
-
-                 Weight
-                    |
-                    v
-             +-------------+
-    Activation -->|    PE    |--> Activation
-             |   +-------------+
-             |          |
-             |          v
-             |       PSUM
-             |
-          PSUM input
-
-The fundamental computation performed by the PE is:
-
-    PSUM_out = PSUM_in + (Activation × Weight)
-
-The weight-stationary approach allows the stored weight to be reused for incoming activation values.
-
-This reduces unnecessary movement of weight data and keeps the multiplication operation close to the stored weight.
-
----
-
-## 7. Processing Element
-
-The Processing Element is the fundamental building block of the systolic array.
-
-The PE is responsible for:
-
-1. Loading and storing a weight.
-2. Receiving activation data.
-3. Performing multiplication between activation and weight.
-4. Adding the multiplication result to the incoming partial sum.
-5. Forwarding activation data to the next PE.
-6. Updating its internal state synchronously with the clock.
-
-The fundamental MAC operation is:
-
-    PSUM_out = PSUM_in + (Activation × Weight)
-
-For example:
-
-    Activation = 3
-    Weight     = 5
-    PSUM_in    = 10
-
-Then:
-
-    Activation × Weight = 3 × 5
-                        = 15
-
-Therefore:
-
-    PSUM_out = 10 + 15
-             = 25
-
-This MAC operation forms the computational basis of the complete systolic array.
-
----
-
-## 8. Activation Data Movement
-
-Activation data is designed to propagate between neighboring Processing Elements.
-
-At the PE level:
-
-    Activation_in
-          |
-          v
-        +----+
-        | PE |
-        +----+
-          |
-          v
-    Activation_out
-
-When multiple PEs are connected, this forwarding mechanism forms a data path through the array.
-
-Conceptually:
-
-    PE00 → PE01 → PE02 → PE03
-
-The same concept is extended across the rows of the 4×4 array.
-
-The PE implementation developed in this project has been simulated to verify activation forwarding behavior.
-
----
-
-## 9. Partial-Sum Accumulation
-
-Matrix multiplication requires multiple products to be added together to produce each output element.
-
-The Processing Element therefore performs partial-sum accumulation.
-
-The operation is:
-
-    PSUM_out = PSUM_in + (Activation × Weight)
-
-The incoming partial sum represents the accumulated result from previous computation stages.
-
-The PE adds the current multiplication result to this partial sum and produces the updated partial sum.
-
-This repeated accumulation enables multiple MAC operations to contribute to a final matrix result.
-
----
-
-## 10. Motivation for the Project
-
-The project is motivated by the increasing demand for specialized hardware accelerators for AI and ML workloads.
-
-General-purpose processors provide flexibility but may require significant data movement and sequential execution for highly repetitive matrix operations.
-
-A systolic array provides:
-
-- Parallel MAC computation
-- Local data communication
-- Data reuse
-- Regular hardware structure
-- Predictable data movement
-- Scalable architecture
-- Efficient utilization of dedicated hardware resources
-
-The project therefore provides practical exposure to the design principles used in hardware accelerators and AI-oriented digital architectures.
-
----
-
-## 11. Why a 4×4 Architecture?
-
-A 4×4 array was selected as the initial architecture because it provides a meaningful demonstration of systolic computation while keeping the RTL design and verification manageable.
-
-The architecture contains:
+The target architecture consists of:
 
     4 rows
     4 columns
     16 Processing Elements
 
-A 4×4 configuration is large enough to demonstrate:
+Each Processing Element performs a multiply-accumulate (MAC) operation and participates in structured data movement through the systolic array.
 
-- Parallel computation
-- PE-to-PE communication
-- Weight reuse
-- Activation propagation
-- Partial-sum accumulation
-- Pipeline behavior
+The fundamental PE operation is:
 
-At the same time, the relatively small array size makes functional verification and debugging practical.
+    PSUM_out = PSUM_in + (Activation × Weight)
 
-The PE-based architecture can later be scaled to larger configurations.
+The architecture is based on the weight-stationary dataflow, where weights are stored locally within the Processing Elements while activation data is propagated through the array.
 
-For example:
-
-    4×4   → 16 PEs
-    8×8   → 64 PEs
-    16×16 → 256 PEs
-
-The current project focuses on the 4×4 configuration.
+The project is being developed incrementally, beginning with the Processing Element, followed by array integration, functional verification, and eventually ASIC-oriented implementation and analysis.
 
 ---
 
-## 12. Technology and Design Methodology
+## 2. Project Objective
 
-The hardware is being developed using SystemVerilog RTL.
+The primary objective of this project is to design and verify a hardware accelerator capable of performing matrix multiplication using a 4×4 systolic array.
 
-The design methodology follows a modular and bottom-up approach.
+The project focuses on the following hardware concepts:
 
-The development starts with the Processing Element because it is the fundamental computational unit.
+- Digital hardware design
+- Verilog RTL design
+- Processing Element architecture
+- Multiply-accumulate computation
+- Weight-stationary dataflow
+- Systolic data movement
+- Parallel processing
+- Pipeline-based computation
+- RTL simulation
+- Functional verification
+- Hardware-oriented optimization
+- ASIC design methodology
 
-After the PE is verified, multiple PE instances can be connected to form the complete systolic array.
-
-The overall methodology is:
-
-    Specification
-        ↓
-    Architecture
-        ↓
-    RTL Design
-        ↓
-    Unit-Level Verification
-        ↓
-    Integration
-        ↓
-    System-Level Verification
-        ↓
-    Synthesis
-        ↓
-    Timing / Area / Power Analysis
-
-This methodology reduces design complexity and allows individual blocks to be verified before system integration.
+The project is intended to provide practical experience in designing an AI accelerator at the RTL level.
 
 ---
 
-## 13. Current Project Implementation
+## 3. Target Architecture
 
-The Processing Element has been implemented as the first hardware block of the project.
+The target architecture contains 16 Processing Elements arranged in a 4×4 array.
 
-The implemented PE provides the fundamental operations required by the target systolic architecture.
+The conceptual structure is:
 
-The PE implementation includes:
+                    Activation Flow →
+
+             +------+ +------+ +------+ +------+
+             | PE00 | | PE01 | | PE02 | | PE03 |
+             +------+ +------+ +------+ +------+
+
+             +------+ +------+ +------+ +------+
+             | PE10 | | PE11 | | PE12 | | PE13 |
+             +------+ +------+ +------+ +------+
+
+             +------+ +------+ +------+ +------+
+             | PE20 | | PE21 | | PE22 | | PE23 |
+             +------+ +------+ +------+ +------+
+
+             +------+ +------+ +------+ +------+
+             | PE30 | | PE31 | | PE32 | | PE33 |
+             +------+ +------+ +------+ +------+
+
+Each Processing Element performs local computation while communicating with neighboring Processing Elements.
+
+The regular structure makes the architecture suitable for parallel matrix multiplication.
+
+---
+
+## 4. Processing Element
+
+The Processing Element is the fundamental computational unit of the accelerator.
+
+A PE performs:
+
+    Product = Activation × Weight
+
+followed by:
+
+    PSUM_out = PSUM_in + Product
+
+Therefore:
+
+    PSUM_out = PSUM_in + (Activation × Weight)
+
+The PE also provides activation forwarding so that activation data can propagate through the systolic array.
+
+The major functions of the PE are:
 
 - Weight loading
 - Weight storage
@@ -335,377 +103,541 @@ The PE implementation includes:
 - Activation forwarding
 - Multiplication
 - Partial-sum accumulation
+- MAC computation
 - Clocked operation
-- Reset functionality
+- Reset initialization
 
-The PE has been integrated with a dedicated testbench for functional verification.
+The PE has been implemented and functionally verified through RTL simulation.
 
 ---
 
-## 14. Current Verification Status
+## 5. Weight-Stationary Dataflow
 
-The PE-level verification has been successfully completed for the fundamental operations implemented so far.
+The selected dataflow for the accelerator is weight-stationary.
 
-The following behaviors have been verified through simulation:
+The main principle is:
 
-- Reset behavior
+    Weight
+       ↓
+    Stored locally in PE
+       ↓
+    Reused during computation
+
+while:
+
+    Activation
+       ↓
+    PE
+       ↓
+    Next PE
+       ↓
+    Next PE
+
+The weight remains stationary inside the PE while activation values move through the processing elements.
+
+This approach provides weight reuse and reduces unnecessary movement of weight data.
+
+---
+
+## 6. Matrix Multiplication
+
+The target computation is:
+
+    C = A × B
+
+For the target architecture:
+
+    A(4×4) × B(4×4) = C(4×4)
+
+Each output element is a dot product.
+
+For example:
+
+    C[0][0] =
+        A[0][0] × B[0][0]
+      + A[0][1] × B[1][0]
+      + A[0][2] × B[2][0]
+      + A[0][3] × B[3][0]
+
+In general:
+
+    C[i][j] = Σ(A[i][k] × B[k][j])
+
+where:
+
+    i = 0 to 3
+    j = 0 to 3
+    k = 0 to 3
+
+The systolic array is intended to perform these operations using multiple Processing Elements operating in parallel.
+
+---
+
+## 7. Why a Systolic Array?
+
+A systolic array is useful for matrix multiplication because computation and data movement are distributed across multiple Processing Elements.
+
+Instead of using one MAC unit repeatedly:
+
+    Input
+      ↓
+    Single MAC
+      ↓
+    Result
+      ↓
+    Repeat
+
+the systolic architecture provides multiple MAC units:
+
+    +----+ +----+ +----+ +----+
+    | PE | | PE | | PE | | PE |
+    +----+ +----+ +----+ +----+
+    +----+ +----+ +----+ +----+
+    | PE | | PE | | PE | | PE |
+    +----+ +----+ +----+ +----+
+    +----+ +----+ +----+ +----+
+    | PE | | PE | | PE | | PE |
+    +----+ +----+ +----+ +----+
+    +----+ +----+ +----+ +----+
+    | PE | | PE | | PE | | PE |
+    +----+ +----+ +----+ +----+
+
+This enables spatial parallelism.
+
+---
+
+## 8. Main Design Characteristics
+
+The target accelerator has the following characteristics:
+
+| Characteristic | Description |
+|----------------|-------------|
+| Architecture | Systolic Array |
+| Array Size | 4×4 |
+| Number of PEs | 16 |
+| Dataflow | Weight-Stationary |
+| Core Operation | Multiply-Accumulate |
+| RTL Language | Verilog |
+| Design Style | Synchronous Digital RTL |
+| Primary Workload | Matrix Multiplication |
+| Verification | RTL Simulation |
+| Target Flow | ASIC-oriented digital design |
+
+---
+
+## 9. Project Development Methodology
+
+The project follows a bottom-up hardware development methodology.
+
+The development sequence is:
+
+    Architecture Definition
+            ↓
+    Processing Element Design
+            ↓
+    Verilog RTL Implementation
+            ↓
+    PE Testbench Development
+            ↓
+    RTL Simulation
+            ↓
+    PE Functional Verification
+            ↓
+    4×4 Array Integration
+            ↓
+    Array-Level Verification
+            ↓
+    Matrix Multiplication Verification
+            ↓
+    Top-Level Integration
+            ↓
+    RTL Quality Checks
+            ↓
+    Logic Synthesis
+            ↓
+    Timing Analysis
+            ↓
+    Area Analysis
+            ↓
+    Power Analysis
+            ↓
+    Physical Design
+            ↓
+    GDSII
+
+The project is being developed incrementally so that each stage can be verified before proceeding to the next stage.
+
+---
+
+## 10. Current Implementation Status
+
+The Processing Element is the first major hardware block implemented in the project.
+
+The following PE functionality has been implemented and verified:
+
+- PE reset behavior
 - Weight loading
-- Activation input handling
+- Weight storage
+- Activation input
 - Activation forwarding
-- Multiply operation
+- Multiplication
 - Partial-sum accumulation
 - MAC operation
+- RTL simulation
 
-The PE simulation confirmed that the implemented MAC behavior produces the expected accumulated result.
+The PE testbench was used to provide input stimulus and verify the expected output behavior.
 
-The current verification stage is therefore:
-
-    Processing Element
-            ↓
-       RTL implemented
-            ↓
-        Testbench
-            ↓
-        Simulation
-            ↓
-        Verification
-            ↓
-          PASS
-
-The complete 4×4 array has not yet been verified at the system level.
+The successful PE verification establishes the foundation for integrating multiple PEs into the target 4×4 systolic array.
 
 ---
 
-## 15. Project Development Structure
+## 11. Current Project Boundary
 
-The project is organized into separate directories for RTL, testbenches, simulation files, waveform results, and documentation.
+At the current stage, the verified hardware boundary is the Processing Element.
 
-Current project structure:
+The development status can be represented as:
 
-    systolic/
-    │
-    ├── rtl/
-    │
-    ├── tb/
-    │
-    ├── sim/
-    │
-    ├── wave/
-    │
-    └── docs/
+    +----------------------+
+    | Processing Element   |
+    |                      |
+    | Weight Storage       |
+    | Activation Path      |
+    | Multiplier           |
+    | Accumulator           |
+    +----------+-----------+
+               |
+               v
+          PE Testbench
+               |
+               v
+          RTL Simulation
+               |
+               v
+       Functional Verification
+               |
+               v
+              PASS
+
+The complete 4×4 accelerator is the target architecture and requires further integration and verification.
+
+---
+
+## 12. Repository Structure
+
+The project directory is organized as:
+
+    ~/systolic
+
+with the following main directories:
+
+    rtl/
+    tb/
+    sim/
+    wave/
+    docs/
 
 ### rtl/
 
-Contains the synthesizable RTL implementation of the hardware design.
+Contains synthesizable Verilog RTL design files.
 
 ### tb/
 
-Contains testbench files used to verify the RTL modules.
+Contains Verilog testbench files used for functional verification.
 
 ### sim/
 
-Contains simulation-related files, scripts, and generated simulation information.
+Contains simulation-related files and scripts.
 
 ### wave/
 
-Contains waveform outputs used for debugging and functional verification.
+Contains waveform-related simulation artifacts.
 
 ### docs/
 
-Contains architecture, implementation, verification, and project documentation.
+Contains project documentation.
+
+This structure separates design RTL, verification code, simulation artifacts, waveform files, and documentation.
 
 ---
 
-## 16. Verification Philosophy
+## 13. Design Philosophy
 
-Verification is being performed incrementally rather than waiting until the entire accelerator is completed.
+The project follows the following design principles:
 
-The verification strategy follows:
+### Modularity
 
-    PE-level verification
-            ↓
-    Array-level verification
-            ↓
-    Top-level verification
+The Processing Element is implemented as an independent reusable hardware block.
 
-The PE is verified independently before integrating multiple PEs.
+### Reusability
 
-This approach makes it easier to identify whether an error originates from:
+The same PE can be instantiated multiple times to construct the systolic array.
 
-- The PE computation
-- Data forwarding
-- PE interconnection
-- Control logic
-- Input/output handling
-- Array-level scheduling
+### Incremental Verification
 
-The next verification stage will focus on the integrated 4×4 systolic array.
+Each major block is verified before integration.
 
----
+### Structured Dataflow
 
-## 17. Expected Accelerator Architecture
+The architecture uses predictable data movement between Processing Elements.
 
-The complete target accelerator is expected to contain the following major functional blocks:
+### Hardware Parallelism
 
-    Input / Activation Interface
-              |
-              v
-       Activation Handling
-              |
-              v
-       Weight-Stationary
-         4×4 PE Array
-              |
-              v
-       Partial Sum / Output
-           Handling
-              |
-              v
-            Output
+Multiple Processing Elements operate concurrently.
 
-Additional control and buffering structures will be introduced during later development stages.
+### Data Reuse
 
-These components are part of the planned complete accelerator and are not considered completed until implemented and verified.
+The weight-stationary architecture keeps weights local to the Processing Elements.
+
+### Scalability
+
+The PE-based architecture can potentially be extended to larger systolic arrays.
 
 ---
 
-## 18. Performance Considerations
+## 14. Industry-Oriented Development
 
-The 4×4 architecture provides 16 Processing Elements.
+The project is being documented and developed using practices commonly associated with professional RTL development.
 
-When all Processing Elements are active, the array contains:
+These include:
 
-    16 parallel MAC units
+- Modular RTL design
+- Clear directory organization
+- Version control using Git
+- Dedicated testbenches
+- Functional verification
+- Waveform-based debugging
+- Reproducible simulation
+- Design documentation
+- Incremental development
+- Synthesis-oriented RTL
+- Timing analysis
+- Area analysis
+- Power analysis
 
-The theoretical MAC throughput depends on the operating frequency and PE utilization.
+The final objective is to move beyond simple RTL simulation and demonstrate an end-to-end digital hardware design methodology.
 
-For an operating frequency of F Hz:
+---
 
-    MAC throughput = 16 × F MAC/s
+## 15. Expected Final Deliverables
+
+The completed project is intended to contain:
+
+### RTL
+
+- Processing Element
+- 4×4 systolic array
+- Required control logic
+- Input handling
+- Weight handling
+- Output handling
+- Top-level accelerator
+
+### Verification
+
+- PE testbench
+- Array-level testbench
+- Matrix multiplication test cases
+- Expected-result checking
+- Waveform analysis
+- Regression tests
+
+### Documentation
+
+- Project overview
+- Architecture
+- PE design
+- Dataflow
+- RTL implementation
+- Verification methodology
+- Simulation methodology
+- Matrix multiplication mapping
+- Design decisions
+- Project status
+- Future work
+
+### Hardware Analysis
+
+After functional verification:
+
+- RTL synthesis
+- Timing analysis
+- Area analysis
+- Power estimation
+- Physical design, if supported by the available tool flow
+
+---
+
+## 16. Performance Perspective
+
+The target array contains:
+
+    4 × 4 = 16 Processing Elements
+
+Each PE contains the capability to perform a MAC operation.
+
+Therefore, when all Processing Elements are active:
+
+    Theoretical MAC operations per cycle = 16
+
+For a clock frequency of F Hz:
+
+    Theoretical MAC throughput = 16 × F MAC/s
 
 For example, at 100 MHz:
 
-    MAC throughput = 16 × 100,000,000
-                   = 1.6 × 10^9 MAC/s
-                   = 1.6 GMAC/s
+    16 × 100,000,000
+    = 1,600,000,000 MAC/s
+    = 1.6 GMAC/s
 
-The 100 MHz example is only an illustration and is not a measured result of the current design.
+The 100 MHz value is only an example calculation.
 
-Actual operating frequency, throughput, area, timing, and power will be reported after synthesis and implementation analysis.
+It is not a measured frequency or performance result of the current design.
 
----
-
-## 19. Industry-Oriented Design Goals
-
-The project is being developed with an ASIC/RTL engineering workflow in mind.
-
-The intended final project will include:
-
-- Modular RTL
-- Functional verification
-- Automated testbenches
-- Waveform-based debugging
-- Matrix-level verification
-- Synthesis
-- Timing analysis
-- Area analysis
-- Power estimation
-- Reproducible simulation
-- Engineering documentation
-
-The goal is not only to demonstrate that the hardware works, but also to demonstrate the complete digital-design workflow from architecture to implementation and analysis.
+Actual performance will be reported only after implementation and timing analysis.
 
 ---
 
-## 20. Project Scope
+## 17. Verification Philosophy
 
-### Included in the project
+Functional correctness is established progressively.
 
-- Systolic array architecture study
-- Weight-stationary dataflow
-- Processing Element design
-- MAC operation
-- Activation forwarding
-- Partial-sum accumulation
-- SystemVerilog RTL
-- Functional simulation
-- PE-level verification
-- 4×4 array architecture
+The verification hierarchy is:
 
-### Planned for later stages
+    PE Verification
+          ↓
+    Multi-PE Verification
+          ↓
+    4×4 Array Verification
+          ↓
+    Matrix Multiplication Verification
+          ↓
+    Top-Level Verification
 
-- 4×4 PE array integration
-- Array-level matrix multiplication
-- Controller design
-- Input/activation buffering
-- Weight buffering
-- Output handling
-- Top-level integration
-- Automated array-level verification
-- Synthesis
-- Timing analysis
-- Area analysis
-- Power estimation
-- Optimization
+At each stage, the RTL output should be compared against an independently calculated expected result.
+
+A successful PE simulation does not automatically mean that the complete 4×4 accelerator is verified.
+
+Array-level verification is required to verify:
+
+- Correct PE interconnection
+- Correct weight mapping
+- Correct activation scheduling
+- Correct partial-sum handling
+- Correct output generation
+- Correct matrix multiplication
 
 ---
 
-## 21. Current Limitations
+## 18. ASIC Design Perspective
 
-The project is currently under active development.
+The project is intended to provide a foundation for understanding an ASIC-oriented digital design flow.
 
-The following items have not yet been completed:
+The planned flow is:
 
-- Complete 4×4 PE array integration
-- Full matrix multiplication verification
-- Accelerator-level controller
-- Complete input/output buffering
-- Top-level accelerator integration
-- Synthesis
-- Static timing analysis
-- Power estimation
-- Physical implementation
-
-Therefore, the current project should be considered a verified PE-level implementation forming the foundation of the planned 4×4 systolic accelerator.
-
----
-
-## 22. Project Status
-
-Current development status:
-
-| Component | Status |
-|-----------|--------|
-| Architecture definition | Completed |
-| Weight-stationary dataflow | Completed |
-| PE architecture | Completed |
-| PE RTL | Completed |
-| Weight loading | Completed |
-| Activation forwarding | Completed |
-| MAC operation | Completed |
-| Partial-sum accumulation | Completed |
-| PE testbench | Completed |
-| PE simulation | Completed |
-| PE functional verification | Completed |
-| 4×4 PE array | In Progress |
-| Array-level testbench | Planned |
-| Matrix multiplication verification | Planned |
-| Controller | Planned |
-| Buffering | Planned |
-| Top-level integration | Planned |
-| Synthesis | Planned |
-| Timing analysis | Planned |
-| Area analysis | Planned |
-| Power estimation | Planned |
-
----
-
-## 23. Future Development
-
-The project will be developed through the following stages.
-
-### Phase 1 — Processing Element
-
-Completed.
-
-    PE RTL
-    Weight loading
-    Activation forwarding
-    MAC
-    Partial-sum accumulation
-    PE testbench
-    PE simulation
-
-### Phase 2 — 4×4 Systolic Array
-
-Next stage.
-
-    Instantiate 16 PEs
-    Connect activation paths
-    Connect partial-sum paths
-    Implement array-level dataflow
-    Verify PE-to-PE communication
-
-### Phase 3 — Matrix Multiplication Verification
-
-    Develop matrix-level testbench
-    Provide input matrices
-    Calculate expected results
-    Compare RTL results
-    Verify complete matrix multiplication
-
-### Phase 4 — Control and Data Handling
-
-    Controller
-    Input handling
-    Weight loading control
-    Output handling
-    Buffering
-
-### Phase 5 — Top-Level Integration
-
-Integrate all functional blocks into a complete accelerator.
-
-### Phase 6 — Synthesis and Analysis
-
-Perform:
-
-    RTL synthesis
-    Area analysis
-    Timing analysis
-    Power estimation
-
-### Phase 7 — Optimization
-
-Investigate opportunities for:
-
-- Higher operating frequency
-- Improved PE utilization
-- Reduced area
-- Reduced switching activity
-- Improved data movement efficiency
-- Improved throughput
-
----
-
-## 24. Expected Final Outcome
-
-The final objective of the project is to produce a verified 4×4 weight-stationary systolic array accelerator implemented in SystemVerilog RTL.
-
-The completed project will demonstrate the complete hardware-development flow:
-
+    Specification
+        ↓
     Architecture
         ↓
-    Microarchitecture
-        ↓
-    RTL
+    Verilog RTL
         ↓
     Functional Verification
         ↓
-    Integration
+    RTL Quality Checks
         ↓
-    System-Level Verification
+    Logic Synthesis
         ↓
-    Synthesis
+    Gate-Level Netlist
         ↓
-    Timing / Area / Power Analysis
+    Static Timing Analysis
+        ↓
+    Floorplanning
+        ↓
+    Placement
+        ↓
+    Clock Tree Synthesis
+        ↓
+    Routing
+        ↓
+    Physical Verification
+        ↓
+    GDSII
 
-The project is intended to serve as a practical demonstration of RTL design, digital architecture, hardware verification, and AI accelerator design concepts.
+The current project stage is RTL implementation and functional verification.
 
 ---
 
-## 25. Summary
+## 19. Important Scope Definition
 
-This project implements the foundation of a 4×4 weight-stationary systolic array AI accelerator.
+The project should clearly distinguish between:
 
-The architecture is based on 16 Processing Elements arranged in a two-dimensional array. Each Processing Element performs a multiply-accumulate operation while forwarding activation data through the systolic network.
+### Implemented
 
-The fundamental PE operation is:
+- PE architecture
+- PE Verilog RTL
+- PE testbench
+- PE simulation
+- PE functional verification
+- Weight loading
+- Activation forwarding
+- MAC computation
+- Partial-sum behavior
+
+### Target / Under Development
+
+- Complete 4×4 PE array
+- Array-level dataflow
+- Matrix multiplication verification
+- Top-level accelerator
+- Control logic
+- Buffering
+- Synthesis
+- Timing analysis
+- Area analysis
+- Power analysis
+- Physical implementation
+
+This distinction is important for maintaining technically accurate project documentation.
+
+---
+
+## 20. Project Significance
+
+This project demonstrates practical implementation of a hardware accelerator architecture rather than only theoretical study.
+
+It combines:
+
+    Digital Design
+         +
+    Verilog RTL
+         +
+    MAC Architecture
+         +
+    Systolic Dataflow
+         +
+    Parallel Processing
+         +
+    Functional Verification
+         +
+    ASIC Design Concepts
+
+The project provides a foundation for understanding how AI-oriented computation can be mapped onto dedicated digital hardware.
+
+---
+
+## 21. Summary
+
+This project implements a 4×4 weight-stationary systolic array architecture for accelerating matrix multiplication.
+
+The target architecture consists of 16 Processing Elements.
+
+Each Processing Element performs:
 
     PSUM_out = PSUM_in + (Activation × Weight)
 
-The Processing Element has been implemented and successfully verified through simulation for its fundamental operations, including weight loading, activation forwarding, multiplication, and partial-sum accumulation.
+The architecture keeps weights locally stored in the Processing Elements while activation data propagates through the array.
 
-The next major development stage is the integration of the verified Processing Element into the complete 4×4 systolic array, followed by array-level matrix multiplication verification.
+The Processing Element has already been implemented in Verilog RTL and functionally verified through simulation.
 
-This project is being developed incrementally with the goal of eventually demonstrating an end-to-end RTL-to-synthesis workflow for a small AI hardware accelerator.
+The next major development stage is to integrate the verified Processing Element into the complete 4×4 systolic array and verify matrix multiplication at the array level.
+
+The project is structured to eventually progress from RTL design and simulation toward synthesis, timing, area, power, and physical-design analysis.
