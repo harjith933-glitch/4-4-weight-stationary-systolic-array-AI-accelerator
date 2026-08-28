@@ -1,299 +1,408 @@
 # System Architecture
 
-## 1. Architecture Overview
+## 1. Overview
 
-The project is a 4×4 weight-stationary systolic array accelerator designed for matrix multiplication workloads.
+The proposed accelerator is a 4×4 weight-stationary systolic array designed for parallel matrix multiplication and AI-oriented computational workloads.
 
-The architecture is built around a two-dimensional array of Processing Elements (PEs). Each PE performs a multiply-accumulate (MAC) operation and communicates with neighboring PEs through structured data paths.
+The architecture consists of 16 Processing Elements (PEs) arranged in four rows and four columns.
 
-The target array contains:
-
-    4 rows
-    4 columns
-    16 Processing Elements
-
-The architecture is designed to exploit parallel computation and data reuse while reducing unnecessary movement of weights.
-
-The fundamental computational operation of the PE is:
+The basic computational operation performed by each PE is a Multiply-Accumulate (MAC):
 
     PSUM_out = PSUM_in + (Activation × Weight)
 
-The complete accelerator is being developed incrementally, beginning with the Processing Element and progressing toward the integrated 4×4 array.
+The architecture is designed around three fundamental principles:
+
+1. Weights are stored locally inside Processing Elements.
+2. Activation data propagates through the array.
+3. Partial sums are accumulated as computation progresses.
+
+The architecture is implemented using Verilog RTL.
 
 ---
 
-## 2. Top-Level Architectural Concept
+## 2. Top-Level Architecture
 
-The target 4×4 systolic array can be represented as:
+The target architecture can be represented as:
 
-                         Activation Flow →
+                    Activation Flow →
 
-                 +------+ +------+ +------+ +------+
-                 | PE00 | | PE01 | | PE02 | | PE03 |
-                 +------+ +------+ +------+ +------+
+          +--------+--------+--------+--------+
+          |  PE00  |  PE01  |  PE02  |  PE03  |
+          +--------+--------+--------+--------+
+             |        |        |        |
+             v        v        v        v
+          +--------+--------+--------+--------+
+          |  PE10  |  PE11  |  PE12  |  PE13  |
+          +--------+--------+--------+--------+
+             |        |        |        |
+             v        v        v        v
+          +--------+--------+--------+--------+
+          |  PE20  |  PE21  |  PE22  |  PE23  |
+          +--------+--------+--------+--------+
+             |        |        |        |
+             v        v        v        v
+          +--------+--------+--------+--------+
+          |  PE30  |  PE31  |  PE32  |  PE33  |
+          +--------+--------+--------+--------+
 
-                 +------+ +------+ +------+ +------+
-                 | PE10 | | PE11 | | PE12 | | PE13 |
-                 +------+ +------+ +------+ +------+
+The above represents the target 4×4 array.
 
-                 +------+ +------+ +------+ +------+
-                 | PE20 | | PE21 | | PE22 | | PE23 |
-                 +------+ +------+ +------+ +------+
+Each PE operates as an independent computational unit while exchanging data with neighboring PEs.
 
-                 +------+ +------+ +------+ +------+
-                 | PE30 | | PE31 | | PE32 | | PE33 |
-                 +------+ +------+ +------+ +------+
+---
 
-Each PE represents one computational unit.
+## 3. Number of Processing Elements
+
+The array dimensions are:
+
+    Rows    = 4
+    Columns = 4
 
 Therefore:
 
-    Total PEs = 4 × 4 = 16
+    Total PEs = Rows × Columns
 
-The PEs operate synchronously and exchange data with neighboring elements.
+    Total PEs = 4 × 4
 
----
+    Total PEs = 16
 
-## 3. Architectural Building Blocks
-
-The complete target accelerator is organized around the following functional blocks:
-
-    +----------------------+
-    | Input / Activation   |
-    | Interface            |
-    +----------+-----------+
-               |
-               v
-    +----------------------+
-    | Activation Data      |
-    | Handling             |
-    +----------+-----------+
-               |
-               v
-    +--------------------------------+
-    |                                |
-    |      4 × 4 Systolic Array      |
-    |                                |
-    |   +----+ +----+ +----+ +----+ |
-    |   | PE | | PE | | PE | | PE | |
-    |   +----+ +----+ +----+ +----+ |
-    |   +----+ +----+ +----+ +----+ |
-    |   | PE | | PE | | PE | | PE | |
-    |   +----+ +----+ +----+ +----+ |
-    |   +----+ +----+ +----+ +----+ |
-    |   | PE | | PE | | PE | | PE | |
-    |   +----+ +----+ +----+ +----+ |
-    |   +----+ +----+ +----+ +----+ |
-    |   | PE | | PE | | PE | | PE | |
-    |   +----+ +----+ +----+ +----+ |
-    |                                |
-    +---------------+----------------+
-                    |
-                    v
-          +--------------------+
-          | Output / Partial   |
-          | Sum Handling       |
-          +--------------------+
-                    |
-                    v
-                 Output
-
-Control and buffering structures will be integrated as the project progresses.
-
-At the current stage, the Processing Element is the implemented and verified hardware block.
+The 16 Processing Elements provide spatial parallelism for matrix multiplication.
 
 ---
 
-## 4. Processing Element Architecture
+## 4. Processing Element Organization
 
-The Processing Element is the fundamental computational unit of the accelerator.
-
-Each PE performs the following functions:
-
-1. Receives an activation.
-2. Stores a weight.
-3. Multiplies the activation by the stored weight.
-4. Adds the multiplication result to the incoming partial sum.
-5. Produces an updated partial sum.
-6. Forwards the activation to the next PE.
-
-The conceptual PE structure is:
-
-                    Weight
-                       |
-                       v
-               +---------------+
-               |               |
-    Activation |      PE       | Activation
-    ---------->|               |---------->
-               |               |
-    PSUM_in -->|    MAC Unit   |
-               |               |
-               +-------+-------+
-                       |
-                       v
-                   PSUM_out
-
-The fundamental operation is:
-
-    PSUM_out = PSUM_in + (Activation × Weight)
-
----
-
-## 5. Weight-Stationary Dataflow
-
-The selected dataflow for the architecture is weight-stationary.
-
-In a weight-stationary architecture, weights are loaded into the Processing Elements and remain locally stored during computation.
-
-Activation data is then propagated through the array.
+Each Processing Element contains the basic functionality required for a MAC-based systolic architecture.
 
 Conceptually:
 
-                 Weight
-                   |
-                   v
-             +-----------+
-             |           |
-    Input -->|    PE     |--> Output activation
-             |           |
-             +-----+-----+
-                   |
-                   v
-                PSUM
+    +--------------------------------+
+    |       Processing Element       |
+    |                                |
+    |   Weight Register              |
+    |        |                       |
+    |        v                       |
+    |   +-----------+                |
+    |   | Multiplier|                |
+    |   +-----+-----+                |
+    |         |                      |
+    |         v                      |
+    |   +-----------+                |
+    |   |   Adder   | <--- PSUM_in   |
+    |   +-----+-----+                |
+    |         |                      |
+    |         v                      |
+    |      PSUM_out                  |
+    |                                |
+    | Activation_in                  |
+    |       |                        |
+    |       v                        |
+    | Activation_out                 |
+    +--------------------------------+
 
-The key idea is:
-
-    Weight → remains inside PE
-    Activation → moves through PE
-    Partial Sum → updated during MAC operation
-
-This allows a weight to be reused while different activation values arrive at the PE.
-
----
-
-## 6. Reason for Weight-Stationary Dataflow
-
-Weight-stationary dataflow was selected because it provides an efficient way to reuse weights during repeated MAC operations.
-
-The major advantages are:
-
-### 6.1 Weight Reuse
-
-A loaded weight can participate in multiple MAC operations without requiring the weight to be reloaded for every activation.
-
-### 6.2 Reduced Data Movement
-
-Keeping weights local reduces unnecessary movement of weight data between memory and computation units.
-
-### 6.3 Localized Computation
-
-The multiplication takes place directly inside the PE using the locally stored weight.
-
-### 6.4 Regular Architecture
-
-The dataflow produces a regular communication pattern between neighboring PEs.
-
-### 6.5 Scalability
-
-The same PE structure can be replicated to create larger arrays.
-
-For example:
-
-    4 × 4   = 16 PEs
-    8 × 8   = 64 PEs
-    16 × 16 = 256 PEs
-
-The current design target is a 4×4 array.
+The PE therefore combines computation, local weight storage, and data forwarding.
 
 ---
 
-## 7. Activation Data Path
+## 5. PE Inputs
 
-Activation data propagates between neighboring PEs.
+The Processing Element requires the following conceptual inputs:
 
-A simplified row is:
+### Clock
 
-    Activation
-        |
-        v
-    +------+      +------+      +------+      +------+
-    | PE00 | ---> | PE01 | ---> | PE02 | ---> | PE03 |
-    +------+      +------+      +------+      +------+
+The clock synchronizes sequential operations.
 
-The PE receives an activation at its input and produces an activation output that is connected to the next PE.
+### Reset
 
-This creates a pipeline-like movement of activation data through the array.
+Reset initializes the internal state of the PE.
 
-The activation forwarding mechanism has already been implemented and verified at the PE level.
+### Activation Input
+
+The activation value enters the PE and participates in the MAC operation.
+
+### Weight Input
+
+The weight value is supplied during the weight-loading operation.
+
+### Weight Load Control
+
+This control determines when the incoming weight should be stored.
+
+### Partial Sum Input
+
+The incoming partial sum is added to the multiplication result.
+
+The exact signal names and widths are defined by the Verilog RTL implementation.
 
 ---
 
-## 8. Partial-Sum Data Path
+## 6. PE Outputs
 
-Partial sums represent intermediate results generated during matrix multiplication.
+The Processing Element provides the following conceptual outputs:
 
-The PE receives a partial sum and combines it with the current multiplication result.
+### Activation Output
 
-The operation is:
+The activation is forwarded to the next PE in the data path.
 
-    PSUM_out = PSUM_in + (Activation × Weight)
+### Partial Sum Output
 
-The data path is:
+The updated accumulated result is produced.
+
+Conceptually:
+
+    activation_in
+          |
+          v
+         PE
+          |
+          +-----> activation_out
+          |
+          +-----> psum_out
+
+The exact output timing depends on the RTL implementation.
+
+---
+
+## 7. Weight-Stationary Architecture
+
+The selected dataflow is weight-stationary.
+
+The main idea is to load a weight into a PE and keep that weight locally available during computation.
+
+The conceptual sequence is:
+
+    Weight Input
+         |
+         v
+    Weight Load
+         |
+         v
+    PE Weight Register
+         |
+         v
+    Weight remains stored
+         |
+         v
+    Multiple MAC operations
+
+While the weight remains stationary:
+
+    Activation 0
+         |
+         v
+        PE
+         |
+         v
+    Activation 1
+         |
+         v
+        PE
+         |
+         v
+    Activation 2
+         |
+         v
+        PE
+
+This provides weight reuse.
+
+---
+
+## 8. Activation Data Path
+
+Activation data moves between Processing Elements.
+
+A simplified row-level path is:
+
+    Activation Input
+          |
+          v
+        PE00
+          |
+          v
+        PE01
+          |
+          v
+        PE02
+          |
+          v
+        PE03
+          |
+          v
+      Row Output
+
+The activation output of one PE is connected to the activation input of the next PE.
+
+This creates the systolic propagation mechanism.
+
+---
+
+## 9. Partial Sum Data Path
+
+The partial sum represents the accumulated result of previous MAC operations.
+
+A simplified PE datapath is:
 
     PSUM_in
        |
        v
-    +--------+
-    |   PE   |
-    +--------+
-       ^
-       |
-    Activation × Weight
+    +------+
+    |  PE  |
+    +--+---+
        |
        v
     PSUM_out
 
-Repeated accumulation allows multiple products to contribute to the final output value.
+Inside the PE:
+
+    PSUM_out = PSUM_in + (Activation × Weight)
+
+The partial sum is therefore updated every time a valid MAC operation takes place.
 
 ---
 
-## 9. Matrix Multiplication Mapping
+## 10. MAC Datapath
 
-The target computation is:
+The complete computational path is:
+
+    Activation
+        |
+        v
+    +-----------+
+    | Multiplier|
+    +-----+-----+
+          |
+          v
+       Product
+          |
+          v
+    +-----------+
+    |   Adder   | <----- PSUM_in
+    +-----+-----+
+          |
+          v
+       PSUM_out
+
+The multiplication is performed using the activation and locally stored weight.
+
+The multiplication result is then added to the incoming partial sum.
+
+---
+
+## 11. Mathematical Operation
+
+For one PE:
+
+    Product = Activation × Weight
+
+Then:
+
+    PSUM_out = PSUM_in + Product
+
+Therefore:
+
+    PSUM_out = PSUM_in + (Activation × Weight)
+
+For multiple operations:
+
+    PSUM_final =
+        PSUM_initial
+        + A0×W0
+        + A1×W1
+        + A2×W2
+        + A3×W3
+
+For a new calculation:
+
+    PSUM_initial = 0
+
+Therefore:
+
+    PSUM_final =
+        A0×W0
+        + A1×W1
+        + A2×W2
+        + A3×W3
+
+This represents a dot product.
+
+---
+
+## 12. Matrix Multiplication Mapping
+
+The target operation is:
 
     C = A × B
 
-For a 4×4 matrix:
+For two 4×4 matrices:
 
-    A(4×4) × B(4×4) = C(4×4)
+    A = 4×4
+
+    B = 4×4
+
+The result is:
+
+    C = 4×4
 
 Each output element is:
 
-    C[i][j] =
-        A[i][0] × B[0][j]
-      + A[i][1] × B[1][j]
-      + A[i][2] × B[2][j]
-      + A[i][3] × B[3][j]
+    C[i][j] = Σ(A[i][k] × B[k][j])
 
-The systolic architecture distributes these multiplication and accumulation operations across the PE array.
+where:
 
-The weights are mapped to the PEs according to the selected weight-stationary dataflow.
+    i = 0, 1, 2, 3
+    j = 0, 1, 2, 3
+    k = 0, 1, 2, 3
 
-Activation values are then propagated through the array so that the required multiplication operations can occur.
+Each output therefore requires four multiplication operations and three additions.
 
-The exact cycle-by-cycle matrix mapping will be finalized and documented during array-level integration.
+The systolic architecture distributes these operations across the PE array.
 
 ---
 
-## 10. PE-to-PE Communication
+## 13. Example Output Calculation
 
-The architecture uses local communication between neighboring Processing Elements.
+For example:
 
-Instead of requiring every PE to communicate with a centralized processing unit, the systolic array uses structured connections.
+    C[0][0] =
+        A[0][0]×B[0][0]
+      + A[0][1]×B[1][0]
+      + A[0][2]×B[2][0]
+      + A[0][3]×B[3][0]
 
-Conceptually:
+Assuming:
 
+    A[0] = [1, 2, 3, 4]
+
+and:
+
+    B column 0 = [5, 6, 7, 8]
+
+then:
+
+    C[0][0] =
+        (1×5)
+      + (2×6)
+      + (3×7)
+      + (4×8)
+
+    C[0][0] =
+        5 + 12 + 21 + 32
+
+    C[0][0] = 70
+
+The hardware performs the same mathematical operation using the PE array.
+
+---
+
+## 14. Systolic Array Data Movement
+
+The defining characteristic of the architecture is synchronized data movement.
+
+A simplified view is:
+
+    Activation →
+    
     PE00 → PE01 → PE02 → PE03
       ↓      ↓      ↓      ↓
     PE10 → PE11 → PE12 → PE13
@@ -302,439 +411,644 @@ Conceptually:
       ↓      ↓      ↓      ↓
     PE30 → PE31 → PE32 → PE33
 
-The exact direction and connection of each data path will depend on the final array implementation.
+The exact final interconnection of activation and partial-sum paths will be established in the array RTL.
 
-The architecture is designed around regular neighboring communication.
+The architecture is designed so that neighboring PEs communicate rather than requiring every PE to communicate directly with a global source.
 
 ---
 
-## 11. Clocking
+## 15. Boundary Processing Elements
 
-The Processing Elements operate synchronously with a common clock.
+The PEs at the edges of the array have different connectivity compared with internal PEs.
 
-The clock provides the timing reference for:
+For example:
+
+    PE00
+
+is located at the top-left corner.
+
+It does not have a PE on its left or above it.
+
+Similarly:
+
+    PE33
+
+is located at the bottom-right corner.
+
+It does not have a PE on its right or below it.
+
+Therefore, boundary connections must be handled explicitly during array integration.
+
+---
+
+## 16. Internal Processing Elements
+
+Internal PEs have neighboring Processing Elements around them.
+
+For example:
+
+    PE11
+
+is surrounded by:
+
+    PE01
+    PE10
+    PE12
+    PE21
+
+depending on the direction of the selected data paths.
+
+Internal PEs therefore participate in the main systolic communication network.
+
+---
+
+## 17. Weight Loading Architecture
+
+Before computation, weights must be loaded into the Processing Elements.
+
+Conceptually:
+
+    Weight Source
+         |
+         v
+    Weight Distribution
+         |
+         v
+    PE Weight Registers
+
+For the complete array, each PE must receive the correct weight corresponding to the intended matrix multiplication mapping.
+
+The weight-loading schedule is therefore an important part of array-level control.
+
+---
+
+## 18. Weight Reuse
+
+After a weight has been loaded:
+
+    Weight
+       ↓
+    PE Register
+       ↓
+    MAC Operation 1
+       ↓
+    MAC Operation 2
+       ↓
+    MAC Operation 3
+       ↓
+    MAC Operation 4
+
+The weight can participate in multiple calculations without requiring a new external weight transfer for every MAC operation.
+
+This is one of the main motivations for selecting weight-stationary dataflow.
+
+---
+
+## 19. Activation Reuse
+
+Activation data also participates in multiple computations as it moves through the array.
+
+For example:
+
+    A0
+     |
+     v
+    PE00
+     |
+     v
+    PE01
+     |
+     v
+    PE02
+     |
+     v
+    PE03
+
+The same activation can therefore interact with multiple stored weights as it propagates.
+
+The exact scheduling determines which matrix elements are being computed at each cycle.
+
+---
+
+## 20. Parallel Computation
+
+The array provides parallel hardware resources.
+
+Instead of calculating:
+
+    C[0][0]
+    C[0][1]
+    C[0][2]
+    ...
+
+one after another using a single MAC unit, multiple PEs can operate concurrently.
+
+The target architecture provides:
+
+    16 Processing Elements
+
+and therefore potentially:
+
+    16 MAC operations per cycle
+
+when all PEs are active and the dataflow is fully utilized.
+
+This is a theoretical architectural capability.
+
+Actual sustained throughput depends on scheduling, pipeline fill/drain, control overhead, memory access, and PE utilization.
+
+---
+
+## 21. Clocked Operation
+
+The systolic array is synchronized using a common clock.
+
+A conceptual cycle sequence is:
+
+    Clock Cycle 0
+        ↓
+    Initial data enters
+
+    Clock Cycle 1
+        ↓
+    Data propagates
+
+    Clock Cycle 2
+        ↓
+    Additional MAC operations
+
+    Clock Cycle 3
+        ↓
+    Data continues propagating
+
+    ...
+
+    Final cycles
+        ↓
+    Results become available
+
+The exact latency will be determined by the final RTL implementation and verified through simulation.
+
+---
+
+## 22. Pipeline Fill
+
+At the beginning of a computation, not all PEs contain valid computation data simultaneously.
+
+The array therefore experiences a pipeline fill phase.
+
+Conceptually:
+
+    Cycle 0:
+
+    PE00 active
+
+    Cycle 1:
+
+    PE00 PE01 active
+
+    Cycle 2:
+
+    PE00 PE01 PE02 active
+
+    Cycle 3:
+
+    PE00 PE01 PE02 PE03 active
+
+The actual pattern depends on the selected data scheduling.
+
+Once the pipeline is filled, multiple PEs can operate concurrently.
+
+---
+
+## 23. Steady-State Computation
+
+After the initial pipeline fill, the array reaches a state where multiple Processing Elements perform MAC operations during the same clock cycle.
+
+Conceptually:
+
+    +----+ +----+ +----+ +----+
+    |MAC | |MAC | |MAC | |MAC |
+    +----+ +----+ +----+ +----+
+
+    +----+ +----+ +----+ +----+
+    |MAC | |MAC | |MAC | |MAC |
+    +----+ +----+ +----+ +----+
+
+    +----+ +----+ +----+ +----+
+    |MAC | |MAC | |MAC | |MAC |
+    +----+ +----+ +----+ +----+
+
+    +----+ +----+ +----+ +----+
+    |MAC | |MAC | |MAC | |MAC |
+    +----+ +----+ +----+ +----+
+
+This is the main source of parallelism in the architecture.
+
+---
+
+## 24. Pipeline Drain
+
+After the final input data has entered the array, the remaining intermediate results continue through the pipeline.
+
+This is called pipeline drain.
+
+The complete operation therefore consists of:
+
+    Pipeline Fill
+         ↓
+    Steady-State Computation
+         ↓
+    Pipeline Drain
+
+The final output latency will be determined during array-level simulation.
+
+---
+
+## 25. Reset State
+
+Reset places the Processing Elements into a known initial state.
+
+Conceptually:
+
+    Reset
+      |
+      v
+    PE State Initialization
+      |
+      +----> Weight State
+      |
+      +----> Partial-Sum State
+      |
+      +----> Activation State
+
+The exact reset values and reset behavior are defined by the Verilog RTL.
+
+Reset behavior is verified at the PE level before array integration.
+
+---
+
+## 26. New Computation
+
+A new matrix multiplication operation requires the internal state to be prepared for a new calculation.
+
+The conceptual sequence is:
+
+    Reset / Initialize
+          ↓
+    Load weights
+          ↓
+    Initialize partial sums
+          ↓
+    Start activation stream
+          ↓
+    Perform MAC operations
+          ↓
+    Collect output results
+
+The exact control mechanism will be implemented at the array/top level.
+
+---
+
+## 27. Data Validity
+
+The complete accelerator must distinguish valid computation cycles from idle cycles.
+
+Validity considerations include:
 
 - Weight loading
-- Activation propagation
-- Partial-sum updates
-- Register updates
-- Synchronous data movement
+- Activation input
+- Partial-sum input
+- Output generation
 
-The PE-level implementation uses clocked RTL to control state changes.
+A valid-control mechanism may be incorporated during array-level integration depending on the final architecture.
 
-The complete array will use the same synchronous design principle.
-
----
-
-## 12. Reset Architecture
-
-Reset is provided to initialize the internal state of the Processing Element.
-
-Reset is required because the PE contains state associated with:
-
-- Stored weight
-- Partial sum
-- Other registered signals
-
-The reset operation places the PE into a known initial state before normal computation begins.
-
-Reset behavior has been included in the PE verification.
-
-The complete array will use the PE reset mechanism during initialization.
+The PE-level verification establishes the arithmetic and forwarding behavior required by the higher-level design.
 
 ---
 
-## 13. Parallel Computation
+## 28. Architecture Hierarchy
 
-One of the main advantages of the architecture is spatial parallelism.
+The intended hardware hierarchy is:
+
+    Top-Level Accelerator
+            |
+            v
+    4×4 Systolic Array
+            |
+            v
+    16 Processing Elements
+            |
+            v
+    MAC Datapath
+            |
+            +---- Multiplier
+            |
+            +---- Accumulator
+            |
+            +---- Weight Register
+            |
+            +---- Activation Forwarding
+
+This hierarchical structure supports modular development and verification.
+
+---
+
+## 29. Reusability of Processing Element
+
+A major architectural advantage is that the same PE module can be instantiated multiple times.
+
+Instead of creating 16 different PE implementations:
+
+    PE00
+    PE01
+    PE02
+    ...
+    PE33
+
+the same Verilog PE module can be reused.
+
+Conceptually:
+
+    PE module
+       |
+       +---- PE00
+       +---- PE01
+       +---- PE02
+       ...
+       +---- PE33
+
+This improves maintainability and reduces duplicated RTL.
+
+---
+
+## 30. Scalability
+
+Although the current target is a 4×4 architecture, the PE-based structure can potentially be scaled.
+
+For example:
+
+    4×4  → 16 PEs
+
+    8×8  → 64 PEs
+
+    16×16 → 256 PEs
+
+Scaling the array increases computational parallelism but also increases:
+
+- Area
+- Power
+- Routing complexity
+- Data movement requirements
+- Control complexity
+- Timing challenges
+
+Therefore, larger arrays require careful architectural and physical-design analysis.
+
+---
+
+## 31. Hardware Resource Perspective
 
 The target 4×4 array contains:
 
     16 Processing Elements
 
-Therefore, when all PEs are active, the architecture provides:
+Each PE requires hardware for:
 
-    16 parallel MAC units
+    Weight storage
+    Multiplier
+    Accumulator
+    Activation forwarding
+    Partial-sum forwarding/storage
+    Control logic as required
 
-This allows multiple multiplication and accumulation operations to occur concurrently.
+Therefore, the complete array contains multiple parallel arithmetic datapaths.
 
-Compared with a single-MAC sequential implementation, the systolic architecture can exploit substantially greater hardware parallelism.
+The actual synthesized area will depend on:
 
----
-
-## 14. Pipeline Operation
-
-The systolic array processes data over multiple clock cycles.
-
-Data does not appear at every output simultaneously when computation starts. Instead, values propagate through the PE network over successive clock cycles.
-
-The general behavior is:
-
-    Cycle 0
-       |
-       v
-    Initial data enters the array
-
-    Cycle 1
-       |
-       v
-    Data moves to neighboring PEs
-
-    Cycle 2
-       |
-       v
-    Additional MAC operations occur
-
-    Cycle 3
-       |
-       v
-    Data continues propagating
-
-      ...
-
-    Final cycles
-       |
-       v
-    Accumulated results become available
-
-Once the pipeline reaches steady state, multiple PEs can perform MAC operations simultaneously.
-
-The exact latency and cycle schedule will be measured during array-level verification.
+- Operand widths
+- Multiplier implementation
+- Accumulator width
+- Technology library
+- Synthesis constraints
+- Optimization settings
 
 ---
 
-## 15. Architectural Scalability
+## 32. Memory and Data Movement
 
-The architecture is based on a reusable PE.
+The systolic array requires a mechanism to supply:
 
-The same PE can be instantiated multiple times to construct larger systolic arrays.
+- Activations
+- Weights
+- Initial partial sums
 
-For example:
+At the current architectural stage, the Processing Element provides the fundamental computation and data movement interface.
 
-    2×2 → 4 PEs
-    4×4 → 16 PEs
-    8×8 → 64 PEs
-    16×16 → 256 PEs
+Future top-level integration may introduce:
 
-The 4×4 configuration is used as the current project target because it provides a practical balance between architectural complexity and verification effort.
+    Input Buffer
+    Weight Buffer
+    Output Buffer
+    Control Logic
 
-The modular PE design also makes it possible to study the effect of increasing array size in future work.
-
----
-
-## 16. Data Reuse
-
-Data reuse is a major motivation for the systolic architecture.
-
-The architecture attempts to minimize unnecessary movement of frequently used operands.
-
-In the selected weight-stationary approach:
-
-    Weight
-       ↓
-    Stored locally in PE
-       ↓
-    Reused for incoming activations
-
-At the same time:
-
-    Activation
-       ↓
-    PE
-       ↓
-    Next PE
-       ↓
-    Next PE
-       ↓
-    ...
-
-This structured data movement allows computation to take place close to where data is being used.
+The final memory architecture should be designed according to the required workload and target hardware constraints.
 
 ---
 
-## 17. Processing Element as a Reusable IP Block
+## 33. Control Architecture
 
-The PE is designed as a modular unit rather than as logic specifically tied to one location in the array.
+The complete accelerator will require control logic for operations such as:
 
-This provides several benefits:
+    Reset
+      ↓
+    Weight Loading
+      ↓
+    Computation Start
+      ↓
+    Activation Scheduling
+      ↓
+    MAC Processing
+      ↓
+    Output Collection
+      ↓
+    Computation Complete
 
-- Reusability
-- Easier verification
-- Easier debugging
-- Consistent behavior
-- Simplified array construction
-- Scalability
-
-The same PE design can be instantiated multiple times to form the 4×4 array.
-
----
-
-## 18. Architectural Development Methodology
-
-The accelerator is being developed using a bottom-up methodology.
-
-The development sequence is:
-
-    1. Define system architecture
-                ↓
-    2. Define PE architecture
-                ↓
-    3. Implement PE RTL
-                ↓
-    4. Develop PE testbench
-                ↓
-    5. Verify PE functionality
-                ↓
-    6. Integrate 16 PEs
-                ↓
-    7. Verify array dataflow
-                ↓
-    8. Verify matrix multiplication
-                ↓
-    9. Integrate control and buffering
-                ↓
-    10. Verify complete accelerator
-                ↓
-    11. Synthesize RTL
-                ↓
-    12. Analyze timing, area and power
-
-The project is currently between steps 5 and 6.
+The exact control implementation will be defined after the PE array interconnection is finalized.
 
 ---
 
-## 19. Current Implementation Boundary
+## 34. Input and Output Concept
 
-The current verified hardware block is the Processing Element.
+The top-level accelerator is expected to have interfaces corresponding to:
 
-The development status is:
+### Inputs
 
-    Processing Element
-           |
-           v
-    RTL Implementation
-           |
-           v
-    Testbench
-           |
-           v
-    Simulation
-           |
-           v
-    Functional Verification
-           |
-           v
-         PASS
+- Clock
+- Reset
+- Activation data
+- Weight data
+- Control signals
 
-The complete 4×4 systolic array is the next major implementation stage.
+### Outputs
 
-Therefore, the current documentation distinguishes between:
+- Computed matrix results
+- Status/control indication as required
 
-### Implemented and verified
-
-- Processing Element
-- Weight loading
-- Activation forwarding
-- MAC operation
-- Partial-sum accumulation
-- PE-level simulation
-
-### Defined but not yet completed
-
-- 4×4 PE integration
-- Array-level communication
-- Matrix multiplication verification
-- Controller
-- Buffering
-- Top-level accelerator
+The exact top-level interface will be finalized during RTL integration.
 
 ---
 
-## 20. Target Complete Accelerator
+## 35. Architectural Advantages
 
-The final target architecture is expected to include:
+The proposed architecture provides several advantages.
 
-    +----------------------+
-    | Input Interface      |
-    +----------+-----------+
-               |
-               v
-    +----------------------+
-    | Input / Activation   |
-    | Handling             |
-    +----------+-----------+
-               |
-               v
-    +----------------------+
-    | Weight Management    |
-    +----------+-----------+
-               |
-               v
-    +--------------------------------+
-    |                                |
-    |        4×4 PE Array            |
-    |                                |
-    |  16 Weight-Stationary PEs      |
-    |                                |
-    +---------------+----------------+
-                    |
-                    v
-    +----------------------+
-    | Output / PSUM        |
-    | Handling             |
-    +----------+-----------+
-               |
-               v
-    +----------------------+
-    | Output Interface     |
-    +----------------------+
+### Parallelism
 
-Control logic will coordinate the operation of the accelerator.
+Multiple PEs perform computation simultaneously.
 
-Input, weight, and output buffering will be developed as part of later integration stages.
+### Weight Reuse
+
+Weights remain locally available in PEs.
+
+### Regular Dataflow
+
+The systolic structure provides predictable data movement.
+
+### Modular Design
+
+The PE can be reused throughout the array.
+
+### Scalability
+
+The same basic architecture can be extended to larger arrays.
+
+### Hardware Acceleration
+
+Dedicated MAC hardware can perform matrix operations more efficiently than repeatedly executing the same operations on a general-purpose processor.
 
 ---
 
-## 21. Performance Model
+## 36. Architectural Challenges
 
-The target architecture contains 16 PE-based MAC units.
+The design also introduces several challenges.
 
-When all PEs are active:
+### Data Scheduling
 
-    MAC operations per cycle = 16
+Activations and weights must arrive at the correct PEs at the correct cycles.
 
-If the complete array operates at a clock frequency of F Hz:
+### Pipeline Latency
 
-    Theoretical MAC throughput = 16 × F MAC/s
+The array requires pipeline fill and drain cycles.
 
-For example, at 100 MHz:
+### Data Alignment
 
-    16 × 100,000,000
-    = 1,600,000,000 MAC/s
-    = 1.6 GMAC/s
+Operands must be synchronized correctly.
 
-The 100 MHz value is only an example and is not a measured characteristic of the current design.
+### Partial-Sum Management
 
-Actual performance will be reported only after synthesis and timing analysis.
+Partial sums must be accumulated without corruption or overflow.
 
----
+### Boundary Handling
 
-## 22. Design Considerations
+Edge PEs have different connectivity.
 
-The architecture must consider several hardware design factors during later development:
+### Routing
 
-### Data precision
+A larger PE array increases interconnect complexity.
 
-Operand widths directly affect:
+### Power
 
-- Multiplier size
-- Accumulator size
-- Area
-- Power
-- Throughput
-
-### PE utilization
-
-Maximum theoretical parallelism is achieved only when the PEs are sufficiently utilized.
-
-### Data movement
-
-The architecture must ensure that activations and partial sums arrive at the correct PEs at the correct clock cycles.
-
-### Pipeline latency
-
-The number of cycles required for data to propagate through the array affects overall latency.
-
-### Memory bandwidth
-
-The ability to supply activations and weights efficiently affects accelerator utilization.
+Multiple MAC units switching simultaneously can increase dynamic power.
 
 ### Timing
 
-The MAC datapath and interconnect must satisfy the target clock period after synthesis.
+Long datapaths and interconnects can affect maximum operating frequency.
 
 ---
 
-## 23. Verification Considerations
+## 37. Verification Requirements
 
-The architecture will be verified progressively.
+Architecture-level verification must confirm:
 
-### PE level
+- Correct PE interconnection
+- Correct weight mapping
+- Correct activation propagation
+- Correct partial-sum propagation
+- Correct cycle alignment
+- Correct matrix multiplication
+- Correct output timing
+- Correct reset behavior
+- Correct handling of multiple computations
 
-Already completed:
+A PE passing its standalone testbench does not guarantee that the complete array will operate correctly.
 
-- Reset
-- Weight loading
-- Activation forwarding
-- Multiplication
-- Partial-sum accumulation
-- MAC operation
-
-### Array level
-
-Planned:
-
-- PE-to-PE communication
-- Activation propagation
-- Weight mapping
-- Partial-sum propagation
-- Matrix multiplication
-- Output correctness
-
-### Top level
-
-Planned:
-
-- Control
-- Input handling
-- Weight handling
-- Output handling
-- End-to-end operation
+Therefore, array-level verification is required.
 
 ---
 
-## 24. Current Architecture Status
+## 38. Current Architecture Status
 
-| Architectural Component | Status |
-|--------------------------|--------|
-| Systolic architecture definition | Completed |
-| 4×4 array specification | Completed |
-| Weight-stationary dataflow | Completed |
+The current development status is:
+
+| Architecture Block | Status |
+|--------------------|--------|
 | PE architecture | Completed |
-| PE RTL | Completed |
-| PE verification | Completed |
-| PE activation forwarding | Completed |
+| Weight-stationary concept | Completed |
 | PE MAC operation | Completed |
-| 4×4 PE integration | In Progress |
-| Array communication | Planned |
+| Activation forwarding concept | Completed |
+| PE-level verification | Completed |
+| 4×4 array architecture | Defined |
+| 16-PE integration | In Progress |
+| Array data scheduling | In Progress |
 | Array-level verification | Planned |
-| Matrix multiplication | Planned |
-| Controller | Planned |
-| Input buffering | Planned |
-| Weight buffering | Planned |
-| Output handling | Planned |
-| Top-level integration | Planned |
-| Synthesis | Planned |
-| Timing analysis | Planned |
-| Area analysis | Planned |
-| Power estimation | Planned |
+| Matrix multiplication verification | Planned |
+| Top-level accelerator | Planned |
 
 ---
 
-## 25. Summary
+## 39. Design Boundary
 
-The target system is a 4×4 weight-stationary systolic array consisting of 16 Processing Elements.
+It is important to distinguish between the architecture that has been defined and the hardware that has already been verified.
 
-The Processing Element is the fundamental computational unit and performs:
+### Verified
+
+The Processing Element has been implemented in Verilog and verified through simulation.
+
+### Defined
+
+The target 4×4 systolic array architecture has been established.
+
+### Not Yet Fully Verified
+
+The following require array-level implementation and simulation:
+
+- Complete 4×4 PE interconnection
+- Full matrix multiplication
+- Complete cycle-by-cycle data schedule
+- Top-level control
+- Full accelerator throughput
+- Synthesis performance
+- Physical implementation
+
+This distinction is maintained throughout the project documentation.
+
+---
+
+## 40. Summary
+
+The proposed accelerator is a 4×4 weight-stationary systolic array containing 16 Processing Elements.
+
+Each PE performs:
 
     PSUM_out = PSUM_in + (Activation × Weight)
 
-Weights are intended to remain locally available within the Processing Elements while activation data propagates through the array.
+Weights are stored locally within the PEs, while activation data is propagated through the array.
 
-The architecture exploits parallel MAC computation, local communication, and data reuse to accelerate matrix multiplication workloads.
+The architecture provides parallel MAC computation and structured data movement suitable for matrix multiplication.
 
-The Processing Element has already been implemented and functionally verified through simulation. The PE verification confirmed the fundamental behaviors required for array integration, including weight loading, activation forwarding, MAC computation, and partial-sum accumulation.
+The Processing Element has already been implemented and functionally verified in Verilog.
 
-The next major development step is to integrate the verified PE into the complete 4×4 systolic array and verify the array using actual matrix multiplication test cases.
+The next major implementation step is to integrate the verified PE into the complete 4×4 array, establish the exact cycle-level data schedule, and verify complete matrix multiplication.
 
-The architecture will subsequently be extended with control, buffering, top-level integration, and ASIC-oriented synthesis and analysis.
+The architecture is designed with future synthesis, timing analysis, area analysis, power analysis, and physical implementation in mind.
